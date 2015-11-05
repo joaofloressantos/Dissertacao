@@ -2,12 +2,15 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Objects;
 import java.util.Scanner;
 import java.util.regex.Pattern;
 
 /**
- * Created by João Carlos Santos on 21-Oct-15.
+ * Created by Joï¿½o Carlos Santos on 21-Oct-15.
  */
 public class FFMPEGTester {
 
@@ -66,7 +69,6 @@ public class FFMPEGTester {
     private static boolean divideVideoFile() {
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         String filePath = "";
-        String option = "";
         File videoFile;
         do {
             System.out.print("Insert original file path or type exit to go back to main menu: ");
@@ -99,54 +101,145 @@ public class FFMPEGTester {
             e.printStackTrace();
         }
         Scanner sc = new Scanner(p.getInputStream());
-        System.out.println(line);
         Pattern durationPattern = Pattern.compile("(?<=Duration: )[^,]*");
         String fileDuration = sc.findWithinHorizon(durationPattern, 0);
         String[] hms = fileDuration.split(":");
         double totalSecs = Integer.parseInt(hms[0]) * 3600 + Integer.parseInt(hms[1]) * 60 + Double.parseDouble(hms[2]);
         System.out.println("Total secs: " + totalSecs);
 
+        double lastBlock, secondsPerBlock, numberOfBlocks = 0;
+        int unevenLast = 0;
+
+        secondsPerBlock = 0.0;
         do {
-            System.out.println("Choose file division type or type exit to go back to the main menu: ");
-            System.out.println("1. By number of blocks;");
-            System.out.println("2. By block duration.");
-            System.out.print("Choose an option: ");
+            System.out.println("Insert the time per block (should be less than the number of seconds in the video): ");
             try {
-                option = reader.readLine();
+                secondsPerBlock = Double.parseDouble(reader.readLine());
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            System.out.println("option: " + option);
-        } while (!Objects.equals(option, "1") && !Objects.equals(option, "2") && !Objects.equals(option, "exit"));
+        } while (secondsPerBlock >= totalSecs);
 
-        switch (option) {
-            case "1":
-                Integer option2 = 0;
-                do {
-                    System.out.println("Insert the number of desired blocks (should be less or equal to the number of "
-                            + "seconds in the video): ");
-                    try {
-                        option2 = Integer.parseInt(reader.readLine());
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }while(option2>totalSecs || option2<2);
-            case "2":
-                double option3 = 0.0;
-                do {
-                    System.out.println("Insert the time per block (should be less than the number of "
-                            + "seconds in the video): ");
-                    try {
-                        option3 = Double.parseDouble(reader.readLine());
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }while(option3>=totalSecs || option3<2);
-            case "exit":
-                return false;
+        System.out.println("Seconds per block: " + secondsPerBlock);
+        numberOfBlocks = Math.floor(totalSecs / secondsPerBlock);
+        System.out.println("Number of blocks: " + numberOfBlocks);
+        lastBlock = Math.round((totalSecs % numberOfBlocks) * 100.0) / 100.0;
+
+        if (lastBlock > 0) {
+            System.out.println("Duration of last block: " + lastBlock);
+            unevenLast = 1;
+            numberOfBlocks++;
+        }
+
+        // force keyframes at determined interval
+        String filePathKf = forceKeyframes(filePath, videoFile.getName(), secondsPerBlock);
+        System.out.println("New file path: " + filePathKf);
+
+        //TODO: creation of split files
+        System.out.println("Separating file...");
+        String destinationFolder = filePath.substring(0, filePath.lastIndexOf("."));
+
+        File destinationFolderFile = new File(destinationFolder);
+
+        // if the directory does not exist, create it
+        if (!destinationFolderFile.exists()) {
+            System.out.println("Creating destination folder: " + destinationFolder);
+            boolean result = false;
+
+            try {
+                destinationFolderFile.mkdir();
+                result = true;
+            } catch (SecurityException se) {
+                //...
+            }
+            if (result) {
+                System.out.println("Folder created.");
+            }
+        }
+
+        SimpleDateFormat df = new SimpleDateFormat("HH:mm:ss");
+        Date d = null;
+        try {
+            d = df.parse("00:00:00");
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        Long time = d.getTime();
+        Long dtime = d.getTime();
+        String commandString;
+
+        for (int i = 0; i < numberOfBlocks; i++) {
+            if (i == numberOfBlocks - 1) {
+                dtime = dtime + (long) (lastBlock * 1000);
+                commandString = "ffmpeg -ss " + new SimpleDateFormat("HH:mm:ss.SSSS").format(time) +
+                        " -to " + new SimpleDateFormat("HH:mm:ss.SSSS").format(dtime) + " -i " + filePathKf + " " +
+                        "-vcodec copy -acodec copy " + destinationFolder + "\\" + videoFile.getName().substring(0,
+                        videoFile.getName().lastIndexOf("" + ".")) + i + videoFile.getName().substring(videoFile
+                        .getName().lastIndexOf("."));
+            } else {
+                dtime = dtime + (long) (secondsPerBlock * 1000);
+                commandString = "ffmpeg -ss " + new SimpleDateFormat("HH:mm:ss.SSSS").format(time) +
+                        " -to " + new SimpleDateFormat("HH:mm:ss.SSSS").format(dtime) + " -i " + filePathKf + " " +
+                        "-vcodec copy -acodec copy " + destinationFolder + "\\" + videoFile.getName().substring(0,
+                        videoFile.getName().lastIndexOf("" + ".")) + i + videoFile.getName().substring(videoFile
+                        .getName().lastIndexOf("."));
+                time = time + (long) (secondsPerBlock * 1000);
+            }
+
+            System.out.println("");
+            System.out.println("");
+            System.out.println("");
+            System.out.println("");
+            System.out.println(commandString);
+            System.out.println("");
+            System.out.println("");
+            System.out.println("");
+            System.out.println("");
+
+            builder = new ProcessBuilder("cmd.exe", "/c", commandString);
+            builder.redirectErrorStream(true);
+            p = null;
+            try {
+                p = builder.start();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            sc = new Scanner(p.getInputStream());
+            while (sc.hasNext()) {
+                line = sc.nextLine();
+                String[] values = line.split("\\s+");
+                System.out.println(line);
+            }
         }
 
         return true;
+    }
+
+    private static String forceKeyframes(String filePath, String name, double secondsPerBlock) {
+        ProcessBuilder builder;
+        Process p;
+
+        builder = new ProcessBuilder("cmd.exe", "/c", "ffmpeg -i " + filePath +
+                " -force_key_frames \"expr:gte(t,n_forced*" + secondsPerBlock + ")\" " + filePath.substring(0,
+                filePath.lastIndexOf(".")) + "kf" + name.substring(name.lastIndexOf(".")));
+        builder.redirectErrorStream(true);
+        p = null;
+        try {
+            p = builder.start();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        String line;
+        Scanner sc = new Scanner(p.getInputStream());
+        while (sc.hasNext()) {
+            line = sc.nextLine();
+            String[] values = line.split("\\s+");
+            System.out.println(line);
+        }
+
+        System.out.println("Key frames added to file.");
+        return filePath.substring(0, filePath.lastIndexOf(".")) + "kf" + name.substring(name.lastIndexOf("."));
     }
 
 }
