@@ -1,10 +1,4 @@
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.io.*;
 import java.util.Objects;
 import java.util.Scanner;
 import java.util.regex.Pattern;
@@ -107,8 +101,10 @@ public class FFMPEGTester {
         double totalSecs = Integer.parseInt(hms[0]) * 3600 + Integer.parseInt(hms[1]) * 60 + Double.parseDouble(hms[2]);
         System.out.println("Total secs: " + totalSecs);
 
-        double lastBlock, secondsPerBlock, numberOfBlocks = 0;
-        int unevenLast = 0;
+        double secondsPerBlock = 0;
+
+        //double lastBlock, numberOfBlocks;
+        //int unevenLast = 0;
 
         secondsPerBlock = 0.0;
         do {
@@ -121,19 +117,20 @@ public class FFMPEGTester {
         } while (secondsPerBlock >= totalSecs);
 
         System.out.println("Seconds per block: " + secondsPerBlock);
-        numberOfBlocks = Math.floor(totalSecs / secondsPerBlock);
-        System.out.println("Number of blocks: " + numberOfBlocks);
-        lastBlock = Math.round((totalSecs % numberOfBlocks) * 100.0) / 100.0;
 
-        if (lastBlock > 0) {
+        //numberOfBlocks = Math.floor(totalSecs / secondsPerBlock);
+        //System.out.println("Number of blocks: " + numberOfBlocks);
+        //lastBlock = Math.round((totalSecs % numberOfBlocks) * 100.0) / 100.0;
+
+        /*if (lastBlock > 0) {
             System.out.println("Duration of last block: " + lastBlock);
             unevenLast = 1;
             numberOfBlocks++;
-        }
+        }*/
 
         // force keyframes at determined interval
-        String filePathKf = forceKeyframes(filePath, videoFile.getName(), secondsPerBlock);
-        System.out.println("New file path: " + filePathKf);
+        /*String filePathKf = forceKeyframes(filePath, videoFile.getName(), secondsPerBlock);
+        System.out.println("New file path: " + filePathKf);*/
 
         //TODO: creation of split files
         System.out.println("Separating file...");
@@ -157,7 +154,57 @@ public class FFMPEGTester {
             }
         }
 
-        SimpleDateFormat df = new SimpleDateFormat("HH:mm:ss");
+        // Dividing the files into chunks
+        String commandString = "ffmpeg -i " + filePath + " -f segment -segment_time " + secondsPerBlock +
+                " -reset_timestamps 1 -c copy " + destinationFolder + "\\" + getFileNameWithoutExtension(fileName) +
+                "%03d.mp4";
+
+        builder = new ProcessBuilder("cmd.exe", "/c", commandString);
+        builder.redirectErrorStream(true);
+        p = null;
+        try {
+            p = builder.start();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        sc = new Scanner(p.getInputStream());
+        while (sc.hasNext()) {
+            line = sc.nextLine();
+            String[] values = line.split("\\s+");
+            System.out.println(line);
+        }
+
+        // making a file list to use with concat later when merging
+        int nFiles = destinationFolderFile.listFiles().length;
+        File fileList = new File(destinationFolderFile, "list.txt");
+        BufferedWriter writer = null;
+        try {
+            writer = new BufferedWriter(new FileWriter(fileList));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        for (int i = 0; i<nFiles; i++) {
+            try {
+                writer.write("file '" + getFileNameWithoutExtension(fileName) + String.format("%03d", i) + ".mp4'");
+                writer.newLine();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        try {
+            writer.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        try {
+            writer.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        /*SimpleDateFormat df = new SimpleDateFormat("HH:mm:ss");
         Date d = null;
         try {
             d = df.parse("00:00:00");
@@ -166,9 +213,9 @@ public class FFMPEGTester {
         }
         Long time = d.getTime();
         Long dtime = d.getTime();
-        String commandString;
+        String commandString;*/
 
-        for (int i = 0; i < numberOfBlocks; i++) {
+        /*for (int i = 0; i < numberOfBlocks; i++) {
             if (i == numberOfBlocks - 1) {
                 dtime = dtime + (long) (lastBlock * 1000);
                 commandString = "ffmpeg -ss " + new SimpleDateFormat("HH:mm:ss.SSSS").format(time) +
@@ -211,9 +258,13 @@ public class FFMPEGTester {
                 String[] values = line.split("\\s+");
                 System.out.println(line);
             }
-        }
+        }*/
 
         return true;
+    }
+
+    private static String getFileNameWithoutExtension(String fileName) {
+        return fileName.substring(0, fileName.lastIndexOf("."));
     }
 
     private static String forceKeyframes(String filePath, String name, double secondsPerBlock) {
