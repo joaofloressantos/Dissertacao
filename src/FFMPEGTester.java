@@ -6,28 +6,20 @@ import java.util.regex.Pattern;
 /**
  * Created by Jo�o Carlos Santos on 21-Oct-15.
  */
+
+// TODO: Adaptar para receber args por linha de comandos e dar skip ao menu inicial
+
 public class FFMPEGTester {
 
     public static void main(String[] args) {
 
-	/*TODO: Menu 1 with
-    * 1. Choose original file path DONE
-	* 2. Choose kind of division between number of block or time per block
-	* 3. Choose output location and name
-	*/
-
-	/*TODO: Menu 2 with
-    * 1. Choose blocks' folder
-	* 2. Choose output location and name
-	*/
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         String option = "";
 
         do {
             System.out.println("Main Menu");
-            System.out.println("1. Divide a video file;");
-            System.out.println("2. Merge a video file;");
-            System.out.println("3. Quit.\n");
+            System.out.println("1. Process a video file;");
+            System.out.println("2. Quit.\n");
             System.out.print("Choose an option: ");
             try {
                 option = reader.readLine();
@@ -35,54 +27,82 @@ public class FFMPEGTester {
                 e.printStackTrace();
             }
 
-            switch (option) {
-                case "1":
-                    if (divideVideoFile()) {
-                        System.out.println("\nOperation completed successfully!\n");
-                    } else {
-                        System.out.println("\nOperation failed!\n");
-                    }
-                    break;
-                case "2":
-                    if (mergeVideoFile()) {
-                        System.out.println("\nOperation completed successfully!\n");
-                    } else {
-                        System.out.println("\nOperation failed!\n");
-                    }
-                    break;
-            }
+            if (Objects.equals(option, "1")) {
+                reader = new BufferedReader(new InputStreamReader(System.in));
+                String filePath = "";
+                File videoFile;
 
+                // Checking if file exists, and reading its properties
+
+                do {
+                    System.out.print("Insert original file path or type exit to go back to main menu: ");
+                    try {
+                        filePath = reader.readLine();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    if (Objects.equals(filePath, "exit")) {
+                        return;
+                    }
+                    videoFile = new File(filePath);
+
+                } while (!videoFile.exists() || videoFile.isDirectory());
+
+                String fileName = videoFile.getName();
+                System.out.println("File exists!");
+                System.out.println("File name: " + fileName);
+                System.out.println("File type: " + fileName.substring(fileName.lastIndexOf(".") + 1));
+
+                String destinationFolder = filePath.substring(0, filePath.lastIndexOf("."));
+
+                File destinationFolderFile = new File(destinationFolder);
+
+                // if the directory does not exist, create it
+                createDestinationFolder(destinationFolder, destinationFolderFile);
+
+                if (divideVideoFile(fileName, filePath, destinationFolder, destinationFolderFile)) {
+                    System.out.println("\nDivision completed successfully!\n");
+                } else {
+                    System.out.println("\nDivision failed!\n");
+                    return;
+                }
+
+                if (processVideoFile(fileName, filePath, destinationFolder, destinationFolderFile)) {
+                    System.out.println("\nProcessing completed successfully!\n");
+                } else {
+                    System.out.println("\nProcessing failed!\n");
+                    return;
+                }
+
+                if (mergeVideoFile(fileName, filePath, destinationFolder)) {
+                    System.out.println("\nMerging completed successfully!\n");
+                } else {
+                    System.out.println("\nMerging failed!\n");
+                    return;
+                }
+            }
         } while (!Objects.equals(option, "3"));
     }
 
-    private static boolean mergeVideoFile() {
+    private static void createDestinationFolder(String destinationFolder, File destinationFolderFile) {
+        if (!destinationFolderFile.exists()) {
+            System.out.println("Creating destination folder: " + destinationFolder);
+            boolean result = false;
 
-        return true;
+            try {
+                destinationFolderFile.mkdir();
+                result = true;
+            } catch (SecurityException se) {
+                //...
+            }
+            if (result) {
+                System.out.println("Folder created.");
+            }
+        }
     }
 
-    private static boolean divideVideoFile() {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-        String filePath = "";
-        File videoFile;
-        do {
-            System.out.print("Insert original file path or type exit to go back to main menu: ");
-            try {
-                filePath = reader.readLine();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            if (Objects.equals(filePath, "exit")) {
-                return false;
-            }
-            videoFile = new File(filePath);
-
-        } while (!videoFile.exists() || videoFile.isDirectory());
-
-        // Checking if file exists, and reading its properties
-        String fileName = videoFile.getName();
-        System.out.println("File exists!");
-        System.out.println("File name: " + fileName);
-        System.out.println("File type: " + fileName.substring(fileName.lastIndexOf(".") + 1));
+    private static boolean divideVideoFile(String fileName, String filePath, String destinationFolder, File
+            destinationFolderFile) {
 
         // Checking output from ffmpeg -i to find file duration
         String line = "";
@@ -103,10 +123,8 @@ public class FFMPEGTester {
 
         double secondsPerBlock = 0;
 
-        //double lastBlock, numberOfBlocks;
-        //int unevenLast = 0;
-
         secondsPerBlock = 0.0;
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         do {
             System.out.println("Insert the time per block (should be less than the number of seconds in the video): ");
             try {
@@ -117,42 +135,6 @@ public class FFMPEGTester {
         } while (secondsPerBlock >= totalSecs);
 
         System.out.println("Seconds per block: " + secondsPerBlock);
-
-        //numberOfBlocks = Math.floor(totalSecs / secondsPerBlock);
-        //System.out.println("Number of blocks: " + numberOfBlocks);
-        //lastBlock = Math.round((totalSecs % numberOfBlocks) * 100.0) / 100.0;
-
-        /*if (lastBlock > 0) {
-            System.out.println("Duration of last block: " + lastBlock);
-            unevenLast = 1;
-            numberOfBlocks++;
-        }*/
-
-        // force keyframes at determined interval
-        /*String filePathKf = forceKeyframes(filePath, videoFile.getName(), secondsPerBlock);
-        System.out.println("New file path: " + filePathKf);*/
-
-        //TODO: creation of split files
-        System.out.println("Separating file...");
-        String destinationFolder = filePath.substring(0, filePath.lastIndexOf("."));
-
-        File destinationFolderFile = new File(destinationFolder);
-
-        // if the directory does not exist, create it
-        if (!destinationFolderFile.exists()) {
-            System.out.println("Creating destination folder: " + destinationFolder);
-            boolean result = false;
-
-            try {
-                destinationFolderFile.mkdir();
-                result = true;
-            } catch (SecurityException se) {
-                //...
-            }
-            if (result) {
-                System.out.println("Folder created.");
-            }
-        }
 
         // Dividing the files into chunks
         String commandString = "ffmpeg -i " + filePath + " -f segment -segment_time " + secondsPerBlock +
@@ -185,9 +167,10 @@ public class FFMPEGTester {
             e.printStackTrace();
         }
 
-        for (int i = 0; i<nFiles; i++) {
+        for (int i = 0; i < nFiles; i++) {
             try {
-                writer.write("file '" + getFileNameWithoutExtension(fileName) + String.format("%03d", i) + ".mp4'");
+                writer.write("file '" + destinationFolder + "\\" + getFileNameWithoutExtension(fileName) + String.format
+                        ("%03d", i) + ".mp4'");
                 writer.newLine();
             } catch (IOException e) {
                 e.printStackTrace();
@@ -204,69 +187,50 @@ public class FFMPEGTester {
             e.printStackTrace();
         }
 
-        /*SimpleDateFormat df = new SimpleDateFormat("HH:mm:ss");
-        Date d = null;
+        return true;
+    }
+
+    private static boolean processVideoFile(String fileName, String filePath, String destinationFolder, File
+            destinationFolderFile) {
+        return true;
+    }
+
+    private static boolean mergeVideoFile(String fileName, String filePath, String destinationFolder) {
+        ProcessBuilder builder;
+        Process p;
+        Scanner sc;
+        String line;
+        String commandString = "ffmpeg -f concat -i " + destinationFolder + "\\list.txt -c copy " +
+                getParentFolderFromPath(filePath) + "\\" + getFileNameWithoutExtension(fileName) + "pr.mp4";
+
+        System.out.println(commandString);
+
+        builder = new ProcessBuilder("cmd.exe", "/c", commandString);
+        builder.redirectErrorStream(true);
+        p = null;
         try {
-            d = df.parse("00:00:00");
-        } catch (ParseException e) {
+            p = builder.start();
+        } catch (IOException e) {
             e.printStackTrace();
         }
-        Long time = d.getTime();
-        Long dtime = d.getTime();
-        String commandString;*/
 
-        /*for (int i = 0; i < numberOfBlocks; i++) {
-            if (i == numberOfBlocks - 1) {
-                dtime = dtime + (long) (lastBlock * 1000);
-                commandString = "ffmpeg -ss " + new SimpleDateFormat("HH:mm:ss.SSSS").format(time) +
-                        " -to " + new SimpleDateFormat("HH:mm:ss.SSSS").format(dtime) + " -i " + filePathKf + " " +
-                        "-vcodec copy -acodec copy " + destinationFolder + "\\" + videoFile.getName().substring(0,
-                        videoFile.getName().lastIndexOf("" + ".")) + i + videoFile.getName().substring(videoFile
-                        .getName().lastIndexOf("."));
-            } else {
-                dtime = dtime + (long) (secondsPerBlock * 1000);
-                commandString = "ffmpeg -ss " + new SimpleDateFormat("HH:mm:ss.SSSS").format(time) +
-                        " -to " + new SimpleDateFormat("HH:mm:ss.SSSS").format(dtime) + " -i " + filePathKf + " " +
-                        "-vcodec copy -acodec copy " + destinationFolder + "\\" + videoFile.getName().substring(0,
-                        videoFile.getName().lastIndexOf("" + ".")) + i + videoFile.getName().substring(videoFile
-                        .getName().lastIndexOf("."));
-                time = time + (long) (secondsPerBlock * 1000);
-            }
-
-            System.out.println("");
-            System.out.println("");
-            System.out.println("");
-            System.out.println("");
-            System.out.println(commandString);
-            System.out.println("");
-            System.out.println("");
-            System.out.println("");
-            System.out.println("");
-
-            builder = new ProcessBuilder("cmd.exe", "/c", commandString);
-            builder.redirectErrorStream(true);
-            p = null;
-            try {
-                p = builder.start();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-
-            sc = new Scanner(p.getInputStream());
-            while (sc.hasNext()) {
-                line = sc.nextLine();
-                String[] values = line.split("\\s+");
-                System.out.println(line);
-            }
-        }*/
+        sc = new Scanner(p.getInputStream());
+        while (sc.hasNext()) {
+            line = sc.nextLine();
+            String[] values = line.split("\\s+");
+            System.out.println(line);
+        }
 
         return true;
     }
 
+
     private static String getFileNameWithoutExtension(String fileName) {
         return fileName.substring(0, fileName.lastIndexOf("."));
     }
-
+    private static String getParentFolderFromPath(String filePath) {
+        return filePath.substring(0, filePath.lastIndexOf("\\"));
+    }
     private static String forceKeyframes(String filePath, String name, double secondsPerBlock) {
         ProcessBuilder builder;
         Process p;
@@ -292,7 +256,6 @@ public class FFMPEGTester {
         System.out.println("Key frames added to file.");
         return filePath.substring(0, filePath.lastIndexOf(".")) + "kf" + name.substring(name.lastIndexOf("."));
     }
-
 }
 
 
