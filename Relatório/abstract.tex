@@ -1,0 +1,25 @@
+\chapter*{Resumo}
+
+Hoje em dia existem várias soluções para o armazenamento e reprodução de vídeos na cloud, como é o caso do Youtube, Dailymotion, Vimeo e MEO Kanal.
+O esforço computacional associado ao armazenamento, classificação, descodificação e reprodução destes conteúdos é considerável, quer no que toca ao processamento dos vídeos, quer às operações de transferência de dados.
+Tendo em conta um sistema multi-utilizador em que a duração dos vídeos submetidos é bastante variável, o processamento destes não pode ser atribuído a simples filas de espera.
+Imaginemos um cenário em que um utilizador submete um vídeo com uma duração de uma hora, seguido de outro utilizador que submete um vídeo com uma duração de um minuto. Se o processamento fosse atribuído de acordo com uma fila de espera, o utilizador que submeteu o vídeo de 1 minuto teria que esperar pelo total processamento do vídeo do outro utilizador para poder ver o seu conteúdo online, o que não se traduz numa boa QoS para o utilizador.
+A solução proposta a este problema é a implementação e teste de várias técnicas de escalonamento de "trabalhos" que definam prioridades de acordo com parâmetros de QoS, sendo depois escolhido o algoritmo que maximize esta mesma QoS.
+Assume-se então como objetivo aproximar o tempo que demoraria a processar cada vídeo ao tempo que este processo demoraria sem concorrência.
+Para fazer um escalonamento equilibrado, os ficheiros serão divididos em "chunks" com a mesma duração para serem processados concorrentemente, sendo que no caso de não haver sobrecarga (haverem processadores desocupados), poderão ser processados em ainda menos tempo do que o esperado.
+Os dados para testes são ficheiros de vídeo de diferentes formatos e durações, de modo a tentar simular as condicões com que lidam os sistemas da MEO ao receber vídeos para processamento.
+O resultado esperado é um sistema mais equilibrado no que toca à distribuição do poder de processamento por cada utilizador e mais rápido devido à paralelização do processo.
+
+\chapter*{Abstract}
+
+Nowadays there is a variety of solutions for the storage and reproduction of video content in the cloud, such as Youtube, Dailymotion, Vimeo and MEO Kanal.
+The computational effort associated with the storage, classification, decoding and reproduction of these contents is considerable, whether in terms of computational effort in processing these videos or in terms of data transfer operations.
+When taking into account a multi-user system where the duration of submitted videos is an unknown variable, their processing cannot be attributed to simple queues.
+Imagining a scenario where a user submits a video with a duration of one hour, followed by another submission by another user of a video with a duration of 1 minute,
+if the processing of these videos was scheduled using a queue, the user that submitted the 1 minute video would have to wait for the processing of the 1 hour video plus the processing of his own video to be able to see it online. This does not translate into a good Quality of Service (QoS) to the user.
+The proposed solution to the problem is the implementation and testing of several scheduling techniques for \textit{jobs} that define priorities in processing according to QoS parameters.
+After testing, one technique is chosen as the best solution to this problem.
+The main goal is to minimize the difference between the time it takes to process a video in the system and the time it would take to process the same video if there were no other videos in the queue.
+In order to balance the processing of videos efficiently, they are first divided into different \"chunks\" with the same duration. This allows the different chunks to be processed concurrently, being that in a case where there is no overload (there are free processing cores), videos are processed even faster than expected.  
+The data on which the tests are performed is a collection of video files with different formats and durations. These videos were selected to best simulate the conditions that MEO's systems deal with every day.
+The results is a better balanced system in accounts to the distribution of processing power per user and a faster system due to the parallelization of the process.

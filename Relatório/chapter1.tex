@@ -1,0 +1,39 @@
+\chapter{Introdução} \label{chap:intro}
+%\section*{}
+
+\section{Contexto/Enquadramento} \label{sec:context}
+
+Hoje em dia cada vez mais se recorre a serviços \textit{cloud} para o alojamento e reprodução de conteúdos multimédia. São exemplos deste tipo de serviço o Youtube, Dailymotion, Vimeo e o MEO Canal.
+Nos bastidores, estes serviços consistem em \textit{clusters} de servidores interligados por uma rede onde os conteúdos multimédia são processados e alojados para futuro consumo.
+Na maior parte destes serviços como o MEO Kanal, os vídeos têm primeiro que passar por uma fase de pré-processamento para uniformizar uma série de propriedades destes conteúdos e prepará-los para serem reproduzidos em várias resoluções.
+Neste tipo de serviços, uma das medidas mais importantes de avaliação de performance é a QoS, especialmente o tempo que um utilizador tem que esperar desde o momento em que submete o seu vídeo para o serviço até ao momento em que esse mesmo vídeo fica disponibilizado no serviço.
+Neste momento, o MEO Kanal dispõe de um mecanismo simplista, pouco optimizado e sequencial para a fase de pré-processamento. Este mecanismo tem um grande potencial para optimização que pode levar a grandes ganhos em termos de QoS para o cliente.
+Nesta dissertação é proposto um método de transformação da fase de pré-processamento num processo concorrente, dividindo os ficheiros recebido em \textit{chunks} para que possam ser processados concorrentemente, e são analisadas várias técnicas de escalonamento do processamento para determinar qual destas consegue mais aproximar o tempo de processamento de um vídeo submetido por um utilizador num sistema partilhado ao tempo que demoraria o processamento caso apenas o vídeo do utilizador tivesse que ser processado.
+Esta dissertação está inserida no âmbito do SapoLabs, inserido no projeto "ELEGANT : MEO KanaL vidEo processinG optimizAtioN by Parallel compuTing”
+
+
+\section{Problema}
+Devido ao processamento sequencial de vídeos que chegam ao MEO Kanal, existem várias situações em que a QoS de um cliente que submete um vídeo poderia ser melhorada.
+O MEO Kanal conta neste momento com três filas de processamento:
+\begin{itemize}
+	\item Uma fila para vídeos com duração inferior a 6 minutos;
+	\item Uma fila para vídeos com duração superior;
+	\item Uma fila para clientes VIP;
+\end{itemize}
+Com esta estrutura, podem acontecer cenários como um em que um utilizador X faz um upload de um vídeo com 7 minutos pouco depois de um utilizador Y fazer um upload de um vídeo com 2 horas. Nesta situação, o utilizador X terá que esperar pelo processamento total do vídeo do utilizador Y, o que leva a um tempo de processamento aparente do seu vídeo muito elevado. Este tipo de situação pode ser resolvida com uma implementação concorrente do sistema que pode por sua vez ser optimizada para ser justa na atribuição de poder de processamento aos vídeos de cada utilizador.
+
+\section{Motivação e Objetivos} \label{sec:goals}
+A principal motivação desta dissertação é conseguir melhorar significativamente a QoS dos utilizadores do MEO Kanal, que se deverá traduzir em esperas menos demoradas no que toca ao processamento dos vídeos submetidos neste serviço.
+Para o fazer, foram delineados os seguintes objetivos:
+\begin{itemize}
+	\item Criação de uma aplicação que divida os ficheiros submetidos em vários \textit{chunks} para permitir o processamento concorrente dos mesmos.
+	\item Implementação de vários algoritmos de escalonamento direcionados a sistemas onde novos trabalhos surgem ao longo do tempo.
+	\item Simulação de cada um dos algoritmos num computador pessoal, de modo a comparar a performance dos algoritmos implementados.
+	\item Simulação de cada um dos algoritmos no simulador SIMGRID, emulando o cluster da MEO, comparando os resultados de performance obtidos aos resultados anteriores.
+	\item Escolha da técnica de escalonamento ótima e finalização da aplicação
+\end{itemize}
+
+
+\section{Estrutura da Dissertação} \label{sec:struct}
+Para além da presente secção, esta monografia contém mais 5 capítulos. No capítulo 2 é descrito o estado da arte e são demonstradas as várias técnicas de escalonamento que podem ser utilizadas na aplicação a desenvolver. É também apresentada a plataforma utilizada para a simulação do \textit{cluster} da MEO. No capítulo 3 é descrito o problema de uma forma mais detalhada, bem como a metodologia utilizada para o resolver. No capítulo 4 é exposta a implementação da solução. No capítulo 5 são expostos os resultados das experiências realizadas. No capítulo 6 é determinada a melhor solução encontrada e se a solução conseguiu cumprir os objetivos estipulados.
+
