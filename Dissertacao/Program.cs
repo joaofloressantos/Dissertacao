@@ -1,13 +1,11 @@
 ﻿using CommandLine;
 using CommandLine.Text;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.IO;
 
 namespace Dissertacao
 {
+
     class Options
     {
         [Option('s', "source", Required = true,
@@ -20,14 +18,14 @@ namespace Dissertacao
 
         [Option('t', "duration", DefaultValue = 5,
           HelpText = "Desired duration of each video file chunk")]
-        public float Duration { get; set; }
+        public double Duration { get; set; }
 
         [Option('c', "cores", DefaultValue = 4,
           HelpText = "Number of cores used for processing")]
         public int Cores { get; set; }
 
         [Option('a', "algorithm", DefaultValue = "FDWS",
-          HelpText = "Desired algorithm for workflow scheduling")]
+          HelpText = "Desired algorithm for workflow scheduling. Can be FDWS, OWM, RankHybd and MW-DBS")]
         public string Algorithm { get; set; }
 
         [ParserState]
@@ -43,6 +41,9 @@ namespace Dissertacao
 
     class Program
     {
+        static double chunkDuration = 5.0;
+        static int cores = Environment.ProcessorCount;
+
         static void Main(string[] args)
         {
             var options = new Options();
@@ -57,12 +58,52 @@ namespace Dissertacao
                 Console.WriteLine("Algorithm: " + options.Algorithm);
             }
 
+            if (options.Cores <= cores)
+            {
+                cores = options.Cores;
+            }
+            chunkDuration = options.Duration;
+
             switch (options.Algorithm)
             {
                 case "FDWS":
                     break;
-                case ""
+                case "RankHybd":
+                    break;
+                case "OWM":
+                    break;
+                case "MW-DBS":
+                    break;
+                default:
+                    Console.WriteLine("Chosen algorithm not available. Exiting...");
+                    return;
             }
         }
+
+        static int DivideToChunks(string filePath)
+        {
+            if (!File.Exists(filePath))
+            {
+                Console.Error.WriteLine("Invalid file path supplied.");
+                return 0;
+            }
+
+            FileInfo source = new FileInfo(filePath);
+            String fileName = Path.GetFileNameWithoutExtension(source.Name);
+            String destinationFolder = Path.GetFileNameWithoutExtension(source.FullName) + "\\";
+
+            System.Diagnostics.Process process = new System.Diagnostics.Process();
+            System.Diagnostics.ProcessStartInfo startInfo = new System.Diagnostics.ProcessStartInfo();
+            startInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
+            startInfo.FileName = "cmd.exe";
+            startInfo.Arguments = "/C ffmpeg -i " + source.ToString() + " segment - segment_time " +
+                chunkDuration + " -reset_timestamps 1 -c copy " + destinationFolder + fileName + "%03d" + source.Extension;
+            process.StartInfo = startInfo;
+            process.Start();
+            process.WaitForExit();
+
+            return 1;
+        }
+
     }
 }
