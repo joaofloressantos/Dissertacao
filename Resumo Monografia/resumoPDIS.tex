@@ -1,0 +1,51 @@
+\documentclass[11pt,a4paper]{article}
+
+%\usepackage[portuguese]{babel}  % if you want portuguese
+\usepackage[utf8]{inputenc}           % 8 bits UTF8
+%\usepackage[latin1]{inputenc}     %  OR 8 bits latin1
+\usepackage{parskip}            % no indentation on paragraphs
+\usepackage{url}                % URLs
+\usepackage{lipsum}             % loren dummy text
+
+%% margins
+\RequirePackage[outer=25mm,inner=30mm,vmargin=16mm,includehead,includefoot,headheight=15pt]{geometry}
+
+%% headers and footers
+\usepackage{fancyhdr}           % page headers
+\pagestyle{fancy}
+\lhead{}\chead{}\rhead{PDIS 2015/2016 Sem 1}
+%\lfoot{}\cfoot{}\rfoot{Page \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+%\newcommand\Small{\fontsize{9}{9.2}\selectfont}
+%\newcommand*\LSTfont{\Small\ttfamily\SetTracking{encoding=*}{-60}\lsstyle}
+
+\pagenumbering{gobble}
+
+%% some more macros
+\newcommand{\dummy}[1]{$<$#1$>$}
+\newcommand{\titles}[2]{\noindent\textbf{#1:} #2\\[2mm]}
+
+%% LaTeX exceptions
+%\hyphenation{In-fra-struc-ture}
+
+\begin{document}
+
+\titles{Title}{\dummy{My title}}
+\titles{Author}{\dummy{My Name}}
+\titles{Supervision}{\dummy{My Supervisors Names}}
+\titles{Date}{\today}
+
+\section*{Abstract}
+
+\lipsum[10-13]
+
+
+\nocite{*}  % to include references which were not cited
+
+%% the references using BibTeX
+\bibliographystyle{unsrt}
+\bibliography{resumoBib}
+
+\end{document}
