@@ -1,28 +1,7 @@
-ffmpeg -i test.mp4 -force_key_frames "expr:gte(t,n_forced*4)" testkeyframed.mp4
+ffmpeg -i test.mp4 -f segment -segment_time 4 -reset_timestamps 1 -c copy test%02d.mp4
 
+ffmpeg -y -i INPUT_FILE -threads 1 -pass 1 -s 1280x720 -preset medium -vprofile baseline -c:v libx264 -level 3.0 -vf "format=yuv420p" -b:v 2000k -maxrate:v 2688k -bufsize:v 2688k -r 25 -g 25 -keyint_min 50 -x264opts "keyint=50:min-keyint=50:no-scenecut" -an -f mp4 -movflags faststart /dev/null
 
-ffmpeg -i testkeyframed.mp4 -ss 00:00:00 -t 4 -vcodec copy -acodec copy test1.mp4
-ffmpeg -i testkeyframed.mp4 -ss 00:00:04 -t 4 -vcodec copy -acodec copy test2.mp4
-ffmpeg -i testkeyframed.mp4 -ss 00:00:08 -t 4 -vcodec copy -acodec copy test3.mp4
-ffmpeg -i testkeyframed.mp4 -ss 00:00:12 -t 4 -vcodec copy -acodec copy test4.mp4
-ffmpeg -i testkeyframed.mp4 -ss 00:00:16 -t 0.09 -vcodec copy -acodec copy test5.mp4
+ffmpeg -y -i INPUT_FILE -threads 1 -pass 2 -s 1280x720 -preset medium -vprofile baseline -c:v libx264 -level 3.0 -vf "format=yuv420p" -b:v 2000k -maxrate:v 2688k -bufsize:v 2688k -r 25 -g 25 -keyint_min 50 -x264opts "keyint=50:min-keyint=50:no-scenecut" -acodec libfaac -ac 2 -ar 48000 -ab 128k -f mp4 -movflags faststart OUTPUT_FILE.mp4
 
-
-ffmpeg -i keyframed.mp4 -f segment -segment_time chunk_length -c copy chunk%02d.mp4
-
-THIS - ffmpeg -i test.mp4 -f segment -segment_time 4 -reset_timestamps 1 -c copy test%02d.mp4
-
-
-ffmpeg -i testkeyframed.mp4 -vcodec copy -acodec copy -ss 00:00:00 -t 4 test1.mp4
-ffmpeg -i testkeyframed.mp4 -vcodec copy -acodec copy -ss 00:00:04 -t 4 test2.mp4
-ffmpeg -i testkeyframed.mp4 -vcodec copy -acodec copy -ss 00:00:08 -t 4 test3.mp4
-ffmpeg -i testkeyframed.mp4 -vcodec copy -acodec copy -ss 00:00:12 -t 4 test4.mp4
-
-
-THIS - ffmpeg -y -i INPUT_FILE -threads 1 -pass 1 -s 1280x720 -preset medium -vprofile baseline -c:v libx264 -level 3.0 -vf "format=yuv420p" -b:v 2000k -maxrate:v 2688k -bufsize:v 2688k -r 25 -g 25 -keyint_min 50 -x264opts "keyint=50:min-keyint=50:no-scenecut" -an -f mp4 -movflags faststart /dev/null
-ffmpeg -y -i test000.mp4 -threads 1 -pass 1 -s 1280x720 -preset medium -vprofile baseline -c:v libx264 -level 3.0 -vf "format=yuv420p" -b:v 2000k -maxrate:v 2688k -bufsize:v 2688k -r 25 -g 25 -keyint_min 50 -x264opts "keyint=50:min-keyint=50:no-scenecut" -an -f mp4 -movflags faststart C:/Users/Vinnie/Desktop
-
-THIS - ffmpeg -y -i INPUT_FILE -threads 1 -pass 2 -s 1280x720 -preset medium -vprofile baseline -c:v libx264 -level 3.0 -vf "format=yuv420p" -b:v 2000k -maxrate:v 2688k -bufsize:v 2688k -r 25 -g 25 -keyint_min 50 -x264opts "keyint=50:min-keyint=50:no-scenecut" -acodec libfaac -ac 2 -ar 48000 -ab 128k -f mp4 -movflags faststart OUTPUT_FILE.mp4
-
-
-THIS - ffmpeg -f concat -i list.txt -c copy final.mp4
+ffmpeg -f concat -i list.txt -c copy final.mp4
