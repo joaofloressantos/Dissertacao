@@ -5,8 +5,7 @@ using System.IO;
 
 namespace Dissertacao
 {
-
-    class Options
+    internal class Options
     {
         [Option('s', "source", Required = true,
           HelpText = "Source video file folder name/path")]
@@ -20,7 +19,7 @@ namespace Dissertacao
           HelpText = "Desired duration of each video file chunk")]
         public double Duration { get; set; }
 
-        [Option('c', "cores", DefaultValue = 4,
+        [Option('c', "cores",
           HelpText = "Number of cores used for processing")]
         public int Cores { get; set; }
 
@@ -39,71 +38,65 @@ namespace Dissertacao
         }
     }
 
-    class Program
+    internal class Program
     {
-        static double chunkDuration = 5.0;
-        static int cores = Environment.ProcessorCount;
+        private static double chunkDuration = 5.0;
+        private static int cores = Environment.ProcessorCount; // Setting max available cores by default
 
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
-            var options = new Options();
-            if (CommandLine.Parser.Default.ParseArguments(args, options))
-            {
-                // Values are available here
-                Console.WriteLine("Selected Options");
-                Console.WriteLine("Source: " + options.Source);
-                Console.WriteLine("Destination: " + options.Destination);
-                Console.WriteLine("Duration: " + options.Duration);
-                Console.WriteLine("Cores: " + options.Cores);
-                Console.WriteLine("Algorithm: " + options.Algorithm);
-            }
+            //var options = new Options();
+            //if (CommandLine.Parser.Default.ParseArguments(args, options))
+            //{
+            //    // Values are available here
+            //    Console.WriteLine("Selected Options");
+            //    Console.WriteLine("Source: " + options.Source);
+            //    Console.WriteLine("Destination: " + options.Destination);
+            //    Console.WriteLine("Duration: " + options.Duration);
+            //    Console.WriteLine("Cores: " + options.Cores);
+            //    Console.WriteLine("Algorithm: " + options.Algorithm);
+            //}
 
-            if (options.Cores <= cores)
-            {
-                cores = options.Cores;
-            }
-            chunkDuration = options.Duration;
+            //if (options.Cores <= cores)
+            //{
+            //    cores = options.Cores;
+            //}
 
-            switch (options.Algorithm)
-            {
-                case "FDWS":
-                    break;
-                case "RankHybd":
-                    break;
-                case "OWM":
-                    break;
-                case "MW-DBS":
-                    break;
-                default:
-                    Console.WriteLine("Chosen algorithm not available. Exiting...");
-                    return;
-            }
+            //chunkDuration = options.Duration;
+
+            //switch (options.Algorithm)
+            //{
+            //    case "FDWS":
+            //        break;
+
+            //    case "RankHybd":
+            //        break;
+
+            //    case "OWM":
+            //        break;
+
+            //    case "MW-DBS":
+            //        break;
+
+            //    default:
+            //        Console.WriteLine("Chosen algorithm not available. Exiting...");
+            //        return;
+            //}
+
+            string filePath = "C:\\Users\\t-jom\\Downloads\\AP_V6\\V6.1.mp4";
+
+            Utilities.DivideToChunks(filePath, chunkDuration);
+
+            Console.WriteLine("Finished Dividing");
+
+            Utilities.RebuildFile("C:\\Users\\t-jom\\Downloads\\AP_V6\\V6.1", "C:\\Users\\t-jom\\Downloads\\AP_V6\\V6.1\\final.mp4");
+
+            Console.WriteLine("Finished Rebuilding");
+
+            Console.ReadKey();
+
         }
 
-        static int DivideToChunks(string filePath)
-        {
-            if (!File.Exists(filePath))
-            {
-                Console.Error.WriteLine("Invalid file path supplied.");
-                return 0;
-            }
-
-            FileInfo source = new FileInfo(filePath);
-            String fileName = Path.GetFileNameWithoutExtension(source.Name);
-            String destinationFolder = Path.GetFileNameWithoutExtension(source.FullName) + "\\";
-
-            System.Diagnostics.Process process = new System.Diagnostics.Process();
-            System.Diagnostics.ProcessStartInfo startInfo = new System.Diagnostics.ProcessStartInfo();
-            startInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
-            startInfo.FileName = "cmd.exe";
-            startInfo.Arguments = "/C ffmpeg -i " + source.ToString() + " segment - segment_time " +
-                chunkDuration + " -reset_timestamps 1 -c copy " + destinationFolder + fileName + "%03d" + source.Extension;
-            process.StartInfo = startInfo;
-            process.Start();
-            process.WaitForExit();
-
-            return 1;
-        }
-
+        
     }
 }
