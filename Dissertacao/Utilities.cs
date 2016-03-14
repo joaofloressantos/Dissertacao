@@ -1,15 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Dissertacao
 {
-    class Utilities
+    internal class Utilities
     {
-
         public static int DivideToChunks(string filePath, double chunkDuration)
         {
             if (!File.Exists(filePath))
@@ -51,9 +46,77 @@ namespace Dissertacao
 
         public static int ProcessChunk(string chunkPath)
         {
+            if (!File.Exists(chunkPath))
+            {
+                Console.Error.WriteLine("Invalid chunk path supplied.");
+                return 0;
+            }
 
+            FileInfo source = new FileInfo(chunkPath);
+            String pass1FilePath = source.Directory + "\\" + Path.GetFileNameWithoutExtension(source.Name) + "pass1.mp4";
+            String pass2FilePath = source.Directory + "\\" + Path.GetFileNameWithoutExtension(source.Name) + "pass2.mp4";
+
+            System.Diagnostics.Process process = new System.Diagnostics.Process();
+            System.Diagnostics.ProcessStartInfo startInfo = new System.Diagnostics.ProcessStartInfo();
+            startInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
+            startInfo.FileName = "cmd.exe";
+            startInfo.Arguments = "/C ffmpeg -y -i " + source.FullName + " -threads 1 -pass 1 "
+                + "-s 1280x720 -preset medium -vprofile baseline -c:v libx264 -level 3.0 -vf "
+                + "\"format=yuv420p\" -b:v 2000k -maxrate:v 2688k -bufsize:v 2688k -r 25 -g 25 "
+                + "-keyint_min 50 -x264opts \"keyint=50:min-keyint=50:no-scenecut\" -an -f mp4 "
+                + "-movflags faststart " + pass1FilePath;
+
+            startInfo.RedirectStandardOutput = true;
+            startInfo.UseShellExecute = false;
+            Console.WriteLine(startInfo.Arguments);
+
+            process.StartInfo = startInfo;
+            process.Start();
+            //process.WaitForExit();
+
+            string q = "";
+            while (!process.HasExited)
+            {
+                q += process.StandardOutput.ReadToEnd();
+            }
+
+            // Deleting pass1 chunk
+            File.Delete(pass1FilePath);
+
+            process = new System.Diagnostics.Process();
+            startInfo = new System.Diagnostics.ProcessStartInfo();
+            startInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
+            startInfo.FileName = "cmd.exe";
+            startInfo.Arguments = "/C ffmpeg -y -i " + source.FullName + " -threads 1 -pass 1 "
+                + "-s 1280x720 -preset medium -vprofile baseline -c:v libx264 -level 3.0 -vf "
+                + "\"format=yuv420p\" -b:v 2000k -maxrate:v 2688k -bufsize:v 2688k -r 25 -g 25 "
+                + "-keyint_min 50 -x264opts \"keyint=50:min-keyint=50:no-scenecut\" -acodec aac" /*libfaac"*/
+                + /*"-ac 2*/" -ar 48000 -ab 128k -f mp4 -movflags faststart " + pass2FilePath;
+
+            ////TODO: Figure out why -ac 2 wont work
+
+            startInfo.RedirectStandardOutput = true;
+            startInfo.UseShellExecute = false;
+            Console.WriteLine(startInfo.Arguments);
+
+            process.StartInfo = startInfo;
+            process.Start();
+            //process.WaitForExit();
+
+            q = "";
+            while (!process.HasExited)
+            {
+                q += process.StandardOutput.ReadToEnd();
+            }
+
+
+            // Deleting original chunk
+            File.Delete(source.FullName);
+
+            System.IO.File.Move(pass2FilePath, source.FullName);
+
+            return 1;
         }
-
 
         public static int RebuildFile(string dataFolder, string finalFilePath)
         {
@@ -69,19 +132,19 @@ namespace Dissertacao
             startInfo.FileName = "cmd.exe";
             startInfo.Arguments = "/C ffmpeg -f concat -i " + dataFolder + "\\list.txt" + " -c copy " + finalFilePath;
 
-            startInfo.RedirectStandardOutput = true;
-            startInfo.UseShellExecute = false;
-            Console.WriteLine(startInfo.Arguments);
+            //startInfo.RedirectStandardOutput = true;
+            //startInfo.UseShellExecute = false;
+            //Console.WriteLine(startInfo.Arguments);
 
             process.StartInfo = startInfo;
             process.Start();
-            //process.WaitForExit();
+            process.WaitForExit();
 
-            string q = "";
-            while (!process.HasExited)
-            {
-                q += process.StandardOutput.ReadToEnd();
-            }
+            //string q = "";
+            //while (!process.HasExited)
+            //{
+            //    q += process.StandardOutput.ReadToEnd();
+            //}
 
             return 1;
         }
@@ -99,6 +162,5 @@ namespace Dissertacao
             }
             System.IO.File.WriteAllLines(destinationFolder + "\\list.txt", files);
         }
-
     }
 }

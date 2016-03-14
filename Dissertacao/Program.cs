@@ -2,6 +2,7 @@
 using CommandLine.Text;
 using System;
 using System.IO;
+using System.Threading;
 
 namespace Dissertacao
 {
@@ -83,20 +84,25 @@ namespace Dissertacao
             //        return;
             //}
 
-            string filePath = "C:\\Users\\t-jom\\Downloads\\AP_V6\\V6.1.mp4";
+            ReadAllFiles(options.Source);
+            WatchFiles(options.Source);
 
-            Utilities.DivideToChunks(filePath, chunkDuration);
+            FileSystemWatcher watcher = new FileSystemWatcher("C:\\Users\\t-jom\\Downloads");
+            watcher.EnableRaisingEvents = true;
+            watcher.Filter = "*.*";
+            watcher.Created += new FileSystemEventHandler(OnChanged);
 
-            Console.WriteLine("Finished Dividing");
-
-            Utilities.RebuildFile("C:\\Users\\t-jom\\Downloads\\AP_V6\\V6.1", "C:\\Users\\t-jom\\Downloads\\AP_V6\\V6.1\\final.mp4");
-
-            Console.WriteLine("Finished Rebuilding");
-
-            Console.ReadKey();
+            while(true)
+            {
+                Console.WriteLine("Running");
+                Thread.Sleep(5000);
+            }
 
         }
 
-        
+        private static void OnChanged(object sender, FileSystemEventArgs e)
+        {
+            Console.Write(e.Name);
+        }
     }
 }
