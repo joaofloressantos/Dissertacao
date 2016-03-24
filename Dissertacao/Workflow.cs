@@ -1,23 +1,54 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.IO;
 
 namespace Dissertacao
 {
-    class Workflow
+    internal class Workflow
     {
         public string filePath;
-
+        public double fileDuration;
         public List<Task> tasks;
-        public Workflow(string filePath)
+        public int nChunks;
+        public double lastChunkDuration;
+
+        public Workflow(string filePath, double chunkDuration)
         {
             this.filePath = filePath;
-            
+
+            fileDuration = (double)Utilities.GetFileDuration(filePath);
+
             tasks = new List<Task>();
 
             tasks.Add(new Task("Divide", filePath, Utilities.CalculateDivideTime(filePath)));
+
+            nChunks = (int)Math.Floor(fileDuration / chunkDuration);
+
+            lastChunkDuration = fileDuration % chunkDuration;
+            int i = 0;
+
+            for (; i < nChunks; i++)
+            {
+                string chunkPath =
+                    Path.Combine(Path.GetDirectoryName(filePath),
+                    Path.GetFileNameWithoutExtension(filePath),
+                    i.ToString("D3") + Path.GetExtension(filePath));
+
+                tasks.Add(new Task("Chunk", chunkPath, Utilities.CalculateChunkProcessingTime(chunkDuration)));
+            }
+
+            if (lastChunkDuration > 0)
+            {
+                i += 1;
+                string chunkPath =
+                    Path.Combine(Path.GetDirectoryName(filePath),
+                    Path.GetFileNameWithoutExtension(filePath),
+                    i.ToString("D3") + Path.GetExtension(filePath));
+
+                tasks.Add(new Task("Chunk", chunkPath, Utilities.CalculateChunkProcessingTime(lastChunkDuration)));
+            }
+
+            tasks.Add(new Task("Join", filePath, Utilities.CalculateJoinTime(filePath)));
         }
     }
 }

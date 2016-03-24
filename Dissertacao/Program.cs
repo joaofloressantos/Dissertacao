@@ -17,11 +17,11 @@ namespace Dissertacao
           HelpText = "Source video file folder name/path")]
         public string Source { get; set; }
 
-        [Option('d', "destination", DefaultValue = "ProcessedVideos",
-          HelpText = "Destination video file folder name/path")]
-        public string Destination { get; set; }
+        //[Option('d', "destination", DefaultValue = "ProcessedVideos",
+        //  HelpText = "Destination video file folder name/path")]
+        //public string Destination { get; set; }
 
-        [Option('t', "duration", DefaultValue = 5,
+        [Option('t', "chunkSize", DefaultValue = 5,
           HelpText = "Desired duration of each video file chunk")]
         public double Duration { get; set; }
 
@@ -46,11 +46,12 @@ namespace Dissertacao
 
     internal class Program
     {
-        private static double chunkDuration = 5.0;
+        private static double chunkDuration;
         private static int cores = Environment.ProcessorCount; // Setting max available cores by default
         private static string source;
-        private static string destination;
-        public List<Workflow> queuedWorkFlows;
+        //private static string destination;
+        private static string algorithm;
+        public static List<Workflow> queuedWorkFlows = new List<Workflow>();
 
         private static void Main(string[] args)
         {
@@ -58,67 +59,72 @@ namespace Dissertacao
             var options = new Options();
             if (CommandLine.Parser.Default.ParseArguments(args, options))
             {
+                // Getting arg data into variables
+                if (options.Cores > cores)
+                {
+                    Console.WriteLine("Number of processor cores selected (" + options.Cores + ") exceeds the ones available. Defaulting to max availables cores: " + cores);
+                }
+                else if (options.Cores > 0)
+                {
+                    cores = options.Cores;
+                }
+
+                chunkDuration = options.Duration;
+                source = options.Source;
+                algorithm = options.Algorithm;
+                //destination = options.Destination;
+
                 // Values are available here
-                Console.WriteLine("Selected Options");
-                Console.WriteLine("Source: " + options.Source);
-                Console.WriteLine("Destination: " + options.Destination);
-                Console.WriteLine("Duration: " + options.Duration);
-                Console.WriteLine("Cores: " + options.Cores);
-                Console.WriteLine("Algorithm: " + options.Algorithm);
+                Console.WriteLine("SELECTED OPTIONS: \n");
+                Console.WriteLine("Source: " + source);
+                //Console.WriteLine("Destination: " + options.Destination);
+                Console.WriteLine("Chunk Size: " + chunkDuration);
+                Console.WriteLine("Cores: " + cores);
+                Console.WriteLine("Algorithm: " + algorithm);
+                Console.WriteLine("");
             }
             else
             {
                 return;
             }
 
-            // Getting arg data into variables
-            if (options.Cores > cores)
+            // Selecting algorithm
+            switch (algorithm)
             {
-                Console.WriteLine("Number of processor cores exceeds the ones available. Defaulting to max availables cores: " + cores);
-            }
-            else if (options.Cores > 0)
-            {
-                cores = options.Cores;
-            }
+                case "FDWS":
+                    FDWS(source, chunkDuration, cores);
+                    break;
 
-            chunkDuration = options.Duration;
-            source = options.Source;
-            destination = options.Destination;
+                case "RankHybd":
+                    break;
 
-            // Creating watcher for selected folder
+                case "OWM":
+                    break;
+
+                case "MW-DBS":
+                    break;
+
+                default:
+                    Console.WriteLine("Chosen algorithm not available. Exiting...");
+                    return;
+            }
+        }
+
+        private static void FDWS(string source, double chunkDuration, int cores)
+        { 
+            // Adding files in source folder to Task list
+            AddFilesToTaskList(ReadAllFilesInFolder(source));
+
+            //// Creating file watcher for source folder
             FileSystemWatcher watcher = new FileSystemWatcher("C:\\Users\\t-jom\\Downloads");
             watcher.EnableRaisingEvents = true;
             watcher.Filter = "*.*";
-            watcher.Created += new FileSystemEventHandler(OnChanged);
-
-            // Selecting algorithm
-            //switch (options.Algorithm)
-            //{
-            //    case "FDWS":
-            //        break;
-
-            //    case "RankHybd":
-            //        break;
-
-            //    case "OWM":
-            //        break;
-
-            //    case "MW-DBS":
-            //        break;
-
-            //    default:
-            //        Console.WriteLine("Chosen algorithm not available. Exiting...");
-            //        return;
-            //}
-
-            // Testing file reading and task creation
-
-            AddFilesToTaskList(ReadAllFilesInFolder(source));
+            watcher.Created += new FileSystemEventHandler(OnFolderChanged);
 
             // CENAS PARA TIMING
             /*var watch = System.Diagnostics.Stopwatch.StartNew();
             double elapsedMs = watch.ElapsedMilliseconds;*/
-
+            
             while (true)
             {
                 Thread.Sleep(100);
@@ -129,8 +135,10 @@ namespace Dissertacao
         {
             foreach (string file in files)
             {
-                Console.WriteLine(file);
-                
+                queuedWorkFlows.Add(new Workflow(file, chunkDuration));
+                Console.WriteLine("Added file " + queuedWorkFlows.ElementAt(queuedWorkFlows.Count - 1).filePath + " with duration "
+                    + queuedWorkFlows.ElementAt(queuedWorkFlows.Count - 1).fileDuration + " and last chunk duration " +
+                     queuedWorkFlows.ElementAt(queuedWorkFlows.Count - 1).lastChunkDuration);
             }
         }
 
@@ -145,12 +153,13 @@ namespace Dissertacao
                 file.ToLower().EndsWith("mkv")).ToArray();
         }
 
-        private static void OnChanged(object sender, FileSystemEventArgs e)
+        private static void OnFolderChanged(object sender, FileSystemEventArgs e)
         {
             FileInfo f = new FileInfo(e.FullPath);
 
             if (f.Extension.Equals(".mp4") || f.Extension.Equals(".mpeg") || f.Extension.Equals(".mpg") || f.Extension.Equals(".wmv") || f.Extension.Equals(".mkv"))
             {
+                Thread.Sleep(1000); // To make sure file is completely stable in Windows
                 AddFilesToTaskList(new string[] { e.FullPath });
             }
         }

@@ -1,4 +1,5 @@
-﻿using MediaToolkit.Model;
+﻿using MediaToolkit;
+using MediaToolkit.Model;
 using System;
 using System.IO;
 
@@ -10,25 +11,33 @@ namespace Dissertacao
         public static double chunkRatio = 1.079;
         public static double joinRatio = 0.005;
 
-        internal static double GetFileDuration(string filePath)
+        public static double? GetFileDuration(string filePath)
         {
-            var videoFile = new MediaFile { Filename = filePath };
-            return videoFile.Metadata.Duration.TotalSeconds;
+            double? duration;
+            MediaFile videoFile = new MediaFile { Filename = filePath };
+
+            using (var engine = new Engine())
+            {
+                engine.GetMetadata(videoFile);
+                duration = videoFile.Metadata.Duration.TotalSeconds;
+            }
+
+            return duration;
         }
 
-        internal static double CalculateDivideTime(string filePath)
+        public static double CalculateDivideTime(string filePath)
         {
-            return GetFileDuration(filePath) * divideRatio;
+            return (double)GetFileDuration(filePath) * divideRatio;
         }
 
-        internal static double CalculateChunkProcessingTime(string filePath, double chunkDuration)
+        public static double CalculateChunkProcessingTime(double chunkDuration)
         {
-            return GetFileDuration(filePath) * chunkRatio;
+            return chunkDuration * chunkRatio;
         }
 
-        internal static double CalculateJoinTime(string filePath)
+        public static double CalculateJoinTime(string filePath)
         {
-            return GetFileDuration(filePath) * joinRatio;
+            return (double)GetFileDuration(filePath) * joinRatio;
         }
 
         public static int DivideToChunks(string filePath, double chunkDuration)
@@ -42,7 +51,7 @@ namespace Dissertacao
             FileInfo source = new FileInfo(filePath);
             String fileName = Path.GetFileNameWithoutExtension(source.Name);
             String destinationFolder = source.Directory + "\\" + fileName + "\\";
-            System.IO.Directory.CreateDirectory(destinationFolder);
+            Directory.CreateDirectory(destinationFolder);
 
             System.Diagnostics.Process process = new System.Diagnostics.Process();
             System.Diagnostics.ProcessStartInfo startInfo = new System.Diagnostics.ProcessStartInfo();
@@ -138,13 +147,17 @@ namespace Dissertacao
             // Deleting original chunk
             File.Delete(source.FullName);
 
-            System.IO.File.Move(pass2FilePath, source.FullName);
+            File.Move(pass2FilePath, source.FullName);
 
             return 1;
         }
 
-        public static int RebuildFile(string dataFolder, string finalFilePath)
+        public static int RebuildFile(string filePath)
         {
+            string dataFolder =
+                    Path.Combine(Path.GetDirectoryName(filePath),
+                    Path.GetFileNameWithoutExtension(filePath));
+
             if (!File.Exists(dataFolder + "\\list.txt"))
             {
                 Console.Error.WriteLine("Invalid data folder supplied.");
@@ -155,7 +168,9 @@ namespace Dissertacao
             System.Diagnostics.ProcessStartInfo startInfo = new System.Diagnostics.ProcessStartInfo();
             startInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
             startInfo.FileName = "cmd.exe";
-            startInfo.Arguments = "/C ffmpeg -f concat -i " + dataFolder + "\\list.txt" + " -c copy " + finalFilePath;
+            startInfo.Arguments = "/C ffmpeg -f concat -i " + dataFolder + "\\list.txt" + " -c copy " +
+                Path.Combine(Path.GetDirectoryName(filePath),
+                    Path.GetFileNameWithoutExtension(filePath) + "p" + Path.GetExtension(filePath));
 
             //startInfo.RedirectStandardOutput = true;
             //startInfo.UseShellExecute = false;
@@ -185,7 +200,9 @@ namespace Dissertacao
                 files[i] = "file '" + file.FullName + "'";
                 i++;
             }
-            System.IO.File.WriteAllLines(destinationFolder + "\\list.txt", files);
+            File.WriteAllLines(destinationFolder + "\\list.txt", files);
         }
+        
+
     }
 }
