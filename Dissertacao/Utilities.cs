@@ -1,10 +1,36 @@
-﻿using System;
+﻿using MediaToolkit.Model;
+using System;
 using System.IO;
 
 namespace Dissertacao
 {
     internal class Utilities
     {
+        public static double divideRatio = 0.0108;
+        public static double chunkRatio = 1.079;
+        public static double joinRatio = 0.005;
+
+        internal static double GetFileDuration(string filePath)
+        {
+            var videoFile = new MediaFile { Filename = filePath };
+            return videoFile.Metadata.Duration.TotalSeconds;
+        }
+
+        internal static double CalculateDivideTime(string filePath)
+        {
+            return GetFileDuration(filePath) * divideRatio;
+        }
+
+        internal static double CalculateChunkProcessingTime(string filePath, double chunkDuration)
+        {
+            return GetFileDuration(filePath) * chunkRatio;
+        }
+
+        internal static double CalculateJoinTime(string filePath)
+        {
+            return GetFileDuration(filePath) * joinRatio;
+        }
+
         public static int DivideToChunks(string filePath, double chunkDuration)
         {
             if (!File.Exists(filePath))
@@ -66,19 +92,19 @@ namespace Dissertacao
                 + "-keyint_min 50 -x264opts \"keyint=50:min-keyint=50:no-scenecut\" -an -f mp4 "
                 + "-movflags faststart " + pass1FilePath;
 
-            startInfo.RedirectStandardOutput = true;
-            startInfo.UseShellExecute = false;
-            Console.WriteLine(startInfo.Arguments);
+            //startInfo.RedirectStandardOutput = true;
+            //startInfo.UseShellExecute = false;
+            //Console.WriteLine(startInfo.Arguments);
 
             process.StartInfo = startInfo;
             process.Start();
-            //process.WaitForExit();
+            process.WaitForExit();
 
-            string q = "";
-            while (!process.HasExited)
-            {
-                q += process.StandardOutput.ReadToEnd();
-            }
+            //string q = "";
+            //while (!process.HasExited)
+            //{
+            //    q += process.StandardOutput.ReadToEnd();
+            //}
 
             // Deleting pass1 chunk
             File.Delete(pass1FilePath);
@@ -95,20 +121,19 @@ namespace Dissertacao
 
             ////TODO: Figure out why -ac 2 wont work
 
-            startInfo.RedirectStandardOutput = true;
-            startInfo.UseShellExecute = false;
-            Console.WriteLine(startInfo.Arguments);
+            //startInfo.RedirectStandardOutput = true;
+            //startInfo.UseShellExecute = false;
+            //Console.WriteLine(startInfo.Arguments);
 
             process.StartInfo = startInfo;
             process.Start();
-            //process.WaitForExit();
+            process.WaitForExit();
 
-            q = "";
-            while (!process.HasExited)
-            {
-                q += process.StandardOutput.ReadToEnd();
-            }
-
+            //q = "";
+            //while (!process.HasExited)
+            //{
+            //    q += process.StandardOutput.ReadToEnd();
+            //}
 
             // Deleting original chunk
             File.Delete(source.FullName);

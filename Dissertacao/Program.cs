@@ -1,13 +1,18 @@
 ﻿using CommandLine;
 using CommandLine.Text;
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 
 namespace Dissertacao
 {
     internal class Options
     {
+        //controls the current amount of threads performing tasks
+        public volatile int workingThreads = 0;
+
         [Option('s', "source", Required = true,
           HelpText = "Source video file folder name/path")]
         public string Source { get; set; }
@@ -43,28 +48,50 @@ namespace Dissertacao
     {
         private static double chunkDuration = 5.0;
         private static int cores = Environment.ProcessorCount; // Setting max available cores by default
+        private static string source;
+        private static string destination;
+        public List<Workflow> queuedWorkFlows;
 
         private static void Main(string[] args)
         {
-            //var options = new Options();
-            //if (CommandLine.Parser.Default.ParseArguments(args, options))
-            //{
-            //    // Values are available here
-            //    Console.WriteLine("Selected Options");
-            //    Console.WriteLine("Source: " + options.Source);
-            //    Console.WriteLine("Destination: " + options.Destination);
-            //    Console.WriteLine("Duration: " + options.Duration);
-            //    Console.WriteLine("Cores: " + options.Cores);
-            //    Console.WriteLine("Algorithm: " + options.Algorithm);
-            //}
+            // Parsing args
+            var options = new Options();
+            if (CommandLine.Parser.Default.ParseArguments(args, options))
+            {
+                // Values are available here
+                Console.WriteLine("Selected Options");
+                Console.WriteLine("Source: " + options.Source);
+                Console.WriteLine("Destination: " + options.Destination);
+                Console.WriteLine("Duration: " + options.Duration);
+                Console.WriteLine("Cores: " + options.Cores);
+                Console.WriteLine("Algorithm: " + options.Algorithm);
+            }
+            else
+            {
+                return;
+            }
 
-            //if (options.Cores <= cores)
-            //{
-            //    cores = options.Cores;
-            //}
+            // Getting arg data into variables
+            if (options.Cores > cores)
+            {
+                Console.WriteLine("Number of processor cores exceeds the ones available. Defaulting to max availables cores: " + cores);
+            }
+            else if (options.Cores > 0)
+            {
+                cores = options.Cores;
+            }
 
-            //chunkDuration = options.Duration;
+            chunkDuration = options.Duration;
+            source = options.Source;
+            destination = options.Destination;
 
+            // Creating watcher for selected folder
+            FileSystemWatcher watcher = new FileSystemWatcher("C:\\Users\\t-jom\\Downloads");
+            watcher.EnableRaisingEvents = true;
+            watcher.Filter = "*.*";
+            watcher.Created += new FileSystemEventHandler(OnChanged);
+
+            // Selecting algorithm
             //switch (options.Algorithm)
             //{
             //    case "FDWS":
@@ -84,25 +111,48 @@ namespace Dissertacao
             //        return;
             //}
 
-            ReadAllFiles(options.Source);
-            WatchFiles(options.Source);
+            // Testing file reading and task creation
 
-            FileSystemWatcher watcher = new FileSystemWatcher("C:\\Users\\t-jom\\Downloads");
-            watcher.EnableRaisingEvents = true;
-            watcher.Filter = "*.*";
-            watcher.Created += new FileSystemEventHandler(OnChanged);
+            AddFilesToTaskList(ReadAllFilesInFolder(source));
 
-            while(true)
+            // CENAS PARA TIMING
+            /*var watch = System.Diagnostics.Stopwatch.StartNew();
+            double elapsedMs = watch.ElapsedMilliseconds;*/
+
+            while (true)
             {
-                Console.WriteLine("Running");
-                Thread.Sleep(5000);
+                Thread.Sleep(100);
             }
+        }
 
+        private static void AddFilesToTaskList(string[] files)
+        {
+            foreach (string file in files)
+            {
+                Console.WriteLine(file);
+                
+            }
+        }
+
+        private static string[] ReadAllFilesInFolder(string source)
+        {
+            return Directory
+                .EnumerateFiles(source)
+                .Where(file => file.ToLower().EndsWith("mp4") ||
+                file.ToLower().EndsWith("mpeg") ||
+                file.ToLower().EndsWith("mpg") ||
+                file.ToLower().EndsWith("wmv") ||
+                file.ToLower().EndsWith("mkv")).ToArray();
         }
 
         private static void OnChanged(object sender, FileSystemEventArgs e)
         {
-            Console.Write(e.Name);
+            FileInfo f = new FileInfo(e.FullPath);
+
+            if (f.Extension.Equals(".mp4") || f.Extension.Equals(".mpeg") || f.Extension.Equals(".mpg") || f.Extension.Equals(".wmv") || f.Extension.Equals(".mkv"))
+            {
+                AddFilesToTaskList(new string[] { e.FullPath });
+            }
         }
     }
 }
