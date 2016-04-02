@@ -202,7 +202,5 @@ namespace Dissertacao
             }
             File.WriteAllLines(destinationFolder + "\\list.txt", files);
         }
-        
-
     }
 }

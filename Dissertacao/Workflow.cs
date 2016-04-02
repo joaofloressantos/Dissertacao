@@ -11,9 +11,13 @@ namespace Dissertacao
         public List<Task> tasks;
         public int nChunks;
         public double lastChunkDuration;
+        public bool isCompleted { get; set; }
+        public DateTime beginTime { get; set; }
+        public DateTime endTime { get; set; }
 
         public Workflow(string filePath, double chunkDuration)
         {
+            beginTime = DateTime.Now;
             this.filePath = filePath;
 
             fileDuration = (double)Utilities.GetFileDuration(filePath);

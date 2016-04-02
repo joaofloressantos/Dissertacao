@@ -46,12 +46,20 @@ namespace Dissertacao
 
     internal class Program
     {
+        #region Globals
+        // Definition Variables
         private static double chunkDuration;
+
         private static int cores = Environment.ProcessorCount; // Setting max available cores by default
         private static string source;
+
         //private static string destination;
         private static string algorithm;
-        public static List<Workflow> queuedWorkFlows = new List<Workflow>();
+
+        // Workflow List
+        public static List<Workflow> workflows = new List<Workflow>();
+
+        #endregion
 
         private static void Main(string[] args)
         {
@@ -111,7 +119,7 @@ namespace Dissertacao
         }
 
         private static void FDWS(string source, double chunkDuration, int cores)
-        { 
+        {
             // Adding files in source folder to Task list
             AddFilesToTaskList(ReadAllFilesInFolder(source));
 
@@ -124,7 +132,7 @@ namespace Dissertacao
             // CENAS PARA TIMING
             /*var watch = System.Diagnostics.Stopwatch.StartNew();
             double elapsedMs = watch.ElapsedMilliseconds;*/
-            
+
             while (true)
             {
                 Thread.Sleep(100);
@@ -135,10 +143,13 @@ namespace Dissertacao
         {
             foreach (string file in files)
             {
-                queuedWorkFlows.Add(new Workflow(file, chunkDuration));
-                Console.WriteLine("Added file " + queuedWorkFlows.ElementAt(queuedWorkFlows.Count - 1).filePath + " with duration "
-                    + queuedWorkFlows.ElementAt(queuedWorkFlows.Count - 1).fileDuration + " and last chunk duration " +
-                     queuedWorkFlows.ElementAt(queuedWorkFlows.Count - 1).lastChunkDuration);
+                workflows.Add(new Workflow(file, chunkDuration));
+                Console.WriteLine(
+                    "Added file " + workflows.ElementAt(workflows.Count - 1).filePath + " at "
+                    + workflows.ElementAt(workflows.Count - 1).beginTime + " with duration "
+                    + workflows.ElementAt(workflows.Count - 1).fileDuration + " and last chunk duration "
+                    + workflows.ElementAt(workflows.Count - 1).lastChunkDuration
+                    );
             }
         }
 
