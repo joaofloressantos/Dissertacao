@@ -14,7 +14,6 @@ namespace Dissertacao
         public int nChunks;
         public double lastChunkDuration;
         public bool isDivided { get; set; }
-        public bool isCompleted { get; set; }
         public DateTime beginTime { get; set; }
         public DateTime endTime { get; set; }
         public bool rankusCalculated { get; set; }
