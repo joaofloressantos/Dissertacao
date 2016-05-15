@@ -47,10 +47,11 @@ namespace Dissertacao
     internal class Program
     {
         #region Globals
+
         // Definition Variables
         private static double chunkDuration;
 
-        private static int cores = Environment.ProcessorCount; // Setting max available cores by default
+        public static int availableCores = Environment.ProcessorCount; // Setting max available cores by default
         private static string source;
 
         //private static string destination;
@@ -59,7 +60,7 @@ namespace Dissertacao
         // Workflow List
         public static List<Workflow> workflows = new List<Workflow>();
 
-        #endregion
+        #endregion Globals
 
         private static void Main(string[] args)
         {
@@ -68,13 +69,13 @@ namespace Dissertacao
             if (CommandLine.Parser.Default.ParseArguments(args, options))
             {
                 // Getting arg data into variables
-                if (options.Cores > cores)
+                if (options.Cores > availableCores)
                 {
-                    Console.WriteLine("Number of processor cores selected (" + options.Cores + ") exceeds the ones available. Defaulting to max availables cores: " + cores);
+                    Console.WriteLine("Number of processor cores selected (" + options.Cores + ") exceeds the ones available. Defaulting to max availables cores: " + availableCores);
                 }
                 else if (options.Cores > 0)
                 {
-                    cores = options.Cores;
+                    availableCores = options.Cores;
                 }
 
                 chunkDuration = options.Duration;
@@ -87,7 +88,7 @@ namespace Dissertacao
                 Console.WriteLine("Source: " + source);
                 //Console.WriteLine("Destination: " + options.Destination);
                 Console.WriteLine("Chunk Size: " + chunkDuration);
-                Console.WriteLine("Cores: " + cores);
+                Console.WriteLine("Cores: " + availableCores);
                 Console.WriteLine("Algorithm: " + algorithm);
                 Console.WriteLine("");
             }
@@ -100,10 +101,11 @@ namespace Dissertacao
             switch (algorithm)
             {
                 case "FDWS":
-                    FDWS(source, chunkDuration, cores);
+                    FDWS(source, chunkDuration, availableCores);
                     break;
 
                 case "RankHybd":
+                    RankHybd(source, chunkDuration, availableCores);
                     break;
 
                 case "OWM":
@@ -118,10 +120,108 @@ namespace Dissertacao
             }
         }
 
+        private static void RankHybd(string source, double chunkDuration, int cores)
+        {
+            Console.WriteLine("entrou");
+            // Adding files in source folder to Task list
+            AddWorkflows(ReadAllFilesInFolder(source));
+
+            //// Creating file watcher for source folder
+            FileSystemWatcher watcher = new FileSystemWatcher(source);
+            watcher.EnableRaisingEvents = true;
+            watcher.Filter = "*.*";
+            watcher.Created += new FileSystemEventHandler(OnFolderChanged);
+
+            // CENAS PARA TIMING
+            /*var watch = System.Diagnostics.Stopwatch.StartNew();
+            double elapsedMs = watch.ElapsedMilliseconds;*/
+
+            List<Task> readyTasks = new List<Task>();
+
+            while (workflows.Count() > 0)
+            {
+                readyTasks = RankHybdCheckWorkflows();
+                while (readyTasks.Count() > 0 && availableCores > 0)
+                {
+                    ProcessTask(readyTasks.First());
+                    readyTasks.Remove(readyTasks.First());
+                }
+            }
+        }
+
+        private static void ProcessTask(Task task)
+        {
+            availableCores--;
+            switch (task.Type)
+            {
+                case "Divide":
+                    //var t = new Thread(() => Utilities.DivideToChunks(task.FilePath, chunkDuration));
+                    //t.Start();
+                    new Thread(delegate ()
+                    {
+                        Utilities.DivideToChunks(task.FilePath, chunkDuration);
+                    }).Start();
+                    break;
+
+                case "Chunk":
+                    new Thread(delegate ()
+                    {
+                        Utilities.ProcessChunk(task.FilePath);
+                    }).Start();
+                    break;
+
+                case "Join":
+                    new Thread(delegate ()
+                    {
+                        Utilities.RebuildFile(task.FilePath);
+                    }).Start();
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
+        private static List<Task> RankHybdCheckWorkflows()
+        {
+            List<Task> readyTasks = new List<Task>();
+
+            foreach (Workflow workflow in workflows)
+            {
+                if (!workflow.rankusCalculated)
+                {
+                    foreach (Task task in workflow.tasks)
+                    {
+                        CalculateRanku(task);
+                    }
+                    workflow.rankusCalculated = true;
+                }
+            }
+            readyTasks = GetAllReadyTasks();
+
+            int multiple = GetNumberOfDifferentWorkflowsInPool(readyTasks);
+
+            if (multiple == 1)
+            {
+                readyTasks = readyTasks.OrderByDescending(x => x.ranku).ToList();
+            }
+            else
+            {
+                readyTasks = readyTasks.OrderBy(x => x.ranku).ToList();
+            }
+
+            return readyTasks;
+        }
+
+        private static int GetNumberOfDifferentWorkflowsInPool(List<Task> readyTasks)
+        {
+            return readyTasks.Select(x => x.FilePath).Distinct().Count();
+        }
+
         private static void FDWS(string source, double chunkDuration, int cores)
         {
             // Adding files in source folder to Task list
-            AddFilesToTaskList(ReadAllFilesInFolder(source));
+            AddWorkflows(ReadAllFilesInFolder(source));
 
             //// Creating file watcher for source folder
             FileSystemWatcher watcher = new FileSystemWatcher("C:\\Users\\t-jom\\Downloads");
@@ -133,13 +233,114 @@ namespace Dissertacao
             /*var watch = System.Diagnostics.Stopwatch.StartNew();
             double elapsedMs = watch.ElapsedMilliseconds;*/
 
-            while (true)
+            while (workflows.Count() > 0)
             {
                 Thread.Sleep(100);
             }
         }
 
-        private static void AddFilesToTaskList(string[] files)
+        private static List<Task> GetAllReadyTasks()
+        {
+            List<Task> readyTasks = new List<Task>();
+
+            foreach (Workflow workflow in workflows)
+            {
+                List<Task> tasksToRemove = new List<Task>();
+                // If not only the divide task can be added
+                if (workflow.isDivided)
+                {
+                    int tasksAdded = 0;
+                    foreach (Task task in workflow.tasks)
+                    {
+                        if (task.Type == "Chunk")
+                        {
+                            readyTasks.Add(task);
+                            tasksToRemove.Add(task);
+                            tasksAdded++;
+                        }
+                    }
+
+                    // If there are no more chunk tasks it should finally join
+                    if (tasksAdded == 0 && workflow.chunkTasks == workflow.chunkTasksDone)
+                    {
+                        foreach (Task task in workflow.tasks)
+                        {
+                            if (task.Type == "Join")
+                            {
+                                readyTasks.Add(task);
+                                tasksToRemove.Add(task);
+                                break;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    foreach (Task task in workflow.tasks)
+                    {
+                        if (task.Type == "Divide")
+                        {
+                            readyTasks.Add(task);
+                            tasksToRemove.Add(task);
+                            break;
+                        }
+                    }
+                }
+
+                foreach (Task t in tasksToRemove)
+                {
+                    workflow.tasks.Remove(t);
+                }
+            }
+
+            return readyTasks;
+        }
+
+        private static void AddOneReadyTaskPerWorkflow()
+        {
+        }
+
+        private static void CalculateRanku(Task task)
+        {
+            switch (task.Type)
+            {
+                case "Join":
+                    task.ranku = 0;
+                    break;
+
+                case "Divide":
+                    task.ranku = task.TimeToProcess + getNextTaskRanku(task);
+                    break;
+
+                case "Chunk":
+                    task.ranku = task.TimeToProcess;
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
+        private static double getNextTaskRanku(Task task)
+        {
+            foreach (Workflow workflow in workflows)
+            {
+                foreach (Task t in workflow.tasks)
+                {
+                    if (task.FilePath == t.FilePath && t.Type == "Chunk")
+                    {
+                        if (t.ranku == 0) t.ranku = t.TimeToProcess;
+                        return t.TimeToProcess;
+                    }
+                }
+            }
+
+            return 0;
+        }
+
+        // DONE
+
+        private static void AddWorkflows(string[] files)
         {
             foreach (string file in files)
             {
@@ -171,7 +372,7 @@ namespace Dissertacao
             if (f.Extension.Equals(".mp4") || f.Extension.Equals(".mpeg") || f.Extension.Equals(".mpg") || f.Extension.Equals(".wmv") || f.Extension.Equals(".mkv"))
             {
                 Thread.Sleep(1000); // To make sure file is completely stable in Windows
-                AddFilesToTaskList(new string[] { e.FullPath });
+                AddWorkflows(new string[] { e.FullPath });
             }
         }
     }
