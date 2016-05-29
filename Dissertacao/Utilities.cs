@@ -2,6 +2,8 @@
 using MediaToolkit.Model;
 using System;
 using System.IO;
+using System.Linq;
+using System.Threading;
 
 namespace Dissertacao
 {
@@ -42,6 +44,7 @@ namespace Dissertacao
 
         public static void DivideToChunks(string filePath, double chunkDuration)
         {
+            Console.WriteLine("Divide");
             if (!File.Exists(filePath))
             {
                 Console.Error.WriteLine("Invalid file path supplied.");
@@ -58,11 +61,11 @@ namespace Dissertacao
             startInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
             startInfo.FileName = "cmd.exe";
             startInfo.Arguments = "/C ffmpeg -i " + source.ToString() + " -f segment -segment_time " +
-                chunkDuration + " -reset_timestamps 1 -c copy " + destinationFolder + "%03d" + source.Extension;
+                chunkDuration + " -reset_timestamps 1 -c copy \"" + destinationFolder + "%03d" + source.Extension + "\"";
 
             //startInfo.RedirectStandardOutput = true;
             //startInfo.UseShellExecute = false;
-            //Console.WriteLine(startInfo.Arguments);
+            Console.WriteLine(startInfo.Arguments);
 
             process.StartInfo = startInfo;
             process.Start();
@@ -82,11 +85,20 @@ namespace Dissertacao
                     workflow.isDivided = true;
             }
 
-            Program.availableCores++;
+            Interlocked.Increment(ref Program.availableCores);
+            try
+            {
+                Program.availableCores++;
+            }
+            finally
+            {
+                System.Threading.Interlocked.Decrement(ref Program.availableCores);
+            }
         }
 
         public static void ProcessChunk(string chunkPath)
         {
+            Console.WriteLine("Process");
             if (!File.Exists(chunkPath))
             {
                 Console.Error.WriteLine("Invalid chunk path supplied. Path: " + chunkPath);
@@ -104,8 +116,8 @@ namespace Dissertacao
             startInfo.Arguments = "/C ffmpeg -y -i " + source.FullName + " -threads 1 -pass 1 "
                 + "-s 1280x720 -preset medium -vprofile baseline -c:v libx264 -level 3.0 -vf "
                 + "\"format=yuv420p\" -b:v 2000k -maxrate:v 2688k -bufsize:v 2688k -r 25 -g 25 "
-                + "-keyint_min 50 -x264opts \"keyint=50:min-keyint=50:no-scenecut\" -an -f mp4 "
-                + "-movflags faststart " + pass1FilePath;
+                + "-keyint_min 50 -x264opts \"keyint=50:min-keyint=50:no-scenecut\" "
+                + "-an -f mp4 -passlogfile " + pass1FilePath + " -movflags faststart NUL";
 
             //startInfo.RedirectStandardOutput = true;
             //startInfo.UseShellExecute = false;
@@ -121,22 +133,21 @@ namespace Dissertacao
             //    q += process.StandardOutput.ReadToEnd();
             //}
 
+            //string filePath = source.FullName;
+            //File.Delete(filePath);
+            //File.Move(pass1FilePath, filePath);
+
+            //Console.WriteLine("Acabou pass 1 ");
 
             process = new System.Diagnostics.Process();
             startInfo = new System.Diagnostics.ProcessStartInfo();
             startInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
             startInfo.FileName = "cmd.exe";
-            startInfo.Arguments = "/C ffmpeg -y -i " + pass1FilePath + " -threads 1 -pass 2 "
-                + "-s 1280x720 -preset medium -vprofile baseline -c:v libx264 -level 3.0 -vf "
+            startInfo.Arguments = "/C ffmpeg -y -i " + source.FullName + " -threads 1 -pass 2 "
+                + "-s 1280x720 -preset medium -vprofile baseline -c:v libx264 -strict 2 -passlogfile " + pass1FilePath + " -level 3.0 -vf "
                 + "\"format=yuv420p\" -b:v 2000k -maxrate:v 2688k -bufsize:v 2688k -r 25 -g "
                 + "25 -keyint_min 50 -x264opts \"keyint=50:min-keyint=50:no-scenecut\" "
-                + "-acodec libfaac -ac 2 -ar 48000 -ab 128k -f mp4 -movflags faststart " + pass2FilePath;
-
-            //startInfo.Arguments = "/C ffmpeg -y -i " + pass1FilePath + " -threads 1 -pass 2 "
-            //    + "-s 1280x720 -preset medium -vprofile baseline -c:v libx264 -level 3.0 -vf "
-            //    + "\"format=yuv420p\" -b:v 2000k -maxrate:v 2688k -bufsize:v 2688k -r 25 -g 25 "
-            //    + "-keyint_min 50 -x264opts \"keyint=50:min-keyint=50:no-scenecut\" -acodec aac " /*libfaac"*/
-            //    + "-ac 2 -ar 48000 -ab 128k -f mp4 -movflags faststart " + pass2FilePath;
+                + "-acodec aac -ac 2 -ar 48000 -ab 128k -f mp4 -movflags faststart " + pass2FilePath;
 
             //startInfo.RedirectStandardOutput = true;
             //startInfo.UseShellExecute = false;
@@ -155,27 +166,132 @@ namespace Dissertacao
 
             // Deleting original chunk
 
-            //File.Delete(source.FullName);
-            //File.Delete(pass1FilePath);
-            //File.Copy(pass2FilePath, source.FullName);
-            //File.Delete(pass2FilePath);
+            File.Delete(source.FullName);
+            File.Delete(pass1FilePath);
+            File.Copy(pass2FilePath, source.FullName);
+            File.Delete(pass2FilePath);
 
-            Program.availableCores++;
+            Interlocked.Increment(ref Program.availableCores);
+            try
+            {
+                Program.availableCores++;
+            }
+            finally
+            {
+                System.Threading.Interlocked.Decrement(ref Program.availableCores);
+            }
 
             foreach (Workflow w in Program.workflows)
             {
                 if (w.filePath == Path.GetDirectoryName(chunkPath) + Path.GetExtension(chunkPath))
                 {
-                    w.chunkTasksDone++;
+                    Interlocked.Increment(ref w.chunkTasksDone);
+                    try
+                    {
+                        w.chunkTasksDone++;
+                    }
+                    finally
+                    {
+                        System.Threading.Interlocked.Decrement(ref w.chunkTasksDone);
+                    }
                 }
             }
+        }
 
-            Console.WriteLine("Finished");
+        public static void ProcessFile(string filePath, string queue)
+        {
+            Console.WriteLine("ProcessFile");
+            if (!File.Exists(filePath))
+            {
+                Console.Error.WriteLine("Invalid file path supplied. Path: " + filePath);
+                return;
+            }
+
+            FileInfo source = new FileInfo(filePath);
+            String pass1FilePath = source.Directory + "\\" + Path.GetFileNameWithoutExtension(source.Name) + "pass1.mp4";
+            String pass2FilePath = source.Directory + "\\" + Path.GetFileNameWithoutExtension(source.Name) + "pass2.mp4";
+
+            System.Diagnostics.Process process = new System.Diagnostics.Process();
+            System.Diagnostics.ProcessStartInfo startInfo = new System.Diagnostics.ProcessStartInfo();
+            startInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
+            startInfo.FileName = "cmd.exe";
+            startInfo.Arguments = "/C ffmpeg -y -i " + source.FullName + " -threads 1 -pass 1 "
+                + "-s 1280x720 -preset medium -vprofile baseline -c:v libx264 -level 3.0 -vf "
+                + "\"format=yuv420p\" -b:v 2000k -maxrate:v 2688k -bufsize:v 2688k -r 25 -g 25 "
+                + "-keyint_min 50 -x264opts \"keyint=50:min-keyint=50:no-scenecut\" "
+                + "-an -f mp4 -passlogfile " + pass1FilePath + " -movflags faststart NUL";
+
+            //startInfo.RedirectStandardOutput = true;
+            //startInfo.UseShellExecute = false;
+            //Console.WriteLine(startInfo.Arguments);
+
+            process.StartInfo = startInfo;
+            process.Start();
+            process.WaitForExit();
+
+            //string q = "";
+            //while (!process.HasExited)
+            //{
+            //    q += process.StandardOutput.ReadToEnd();
+            //}
+
+            //string filePath = source.FullName;
+            //File.Delete(filePath);
+            //File.Move(pass1FilePath, filePath);
+
+            //Console.WriteLine("Acabou pass 1 ");
+
+            process = new System.Diagnostics.Process();
+            startInfo = new System.Diagnostics.ProcessStartInfo();
+            startInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
+            startInfo.FileName = "cmd.exe";
+            startInfo.Arguments = "/C ffmpeg -y -i " + source.FullName + " -threads 1 -pass 2 "
+                + "-s 1280x720 -preset medium -vprofile baseline -c:v libx264 -strict 2 -passlogfile " + pass1FilePath + " -level 3.0 -vf "
+                + "\"format=yuv420p\" -b:v 2000k -maxrate:v 2688k -bufsize:v 2688k -r 25 -g "
+                + "25 -keyint_min 50 -x264opts \"keyint=50:min-keyint=50:no-scenecut\" "
+                + "-acodec aac -ac 2 -ar 48000 -ab 128k -f mp4 -movflags faststart " + pass2FilePath;
+
+            //startInfo.RedirectStandardOutput = true;
+            //startInfo.UseShellExecute = false;
+            //Console.WriteLine(startInfo.Arguments);
+
+            process.StartInfo = startInfo;
+            process.Start();
+            process.WaitForExit();
+
+            //string q = "";
+            //q = "";
+            //while (!process.HasExited)
+            //{
+            //    q += process.StandardOutput.ReadToEnd();
+            //}
+
+            // Deleting original chunk
+
+            File.Delete(source.FullName);
+            File.Copy(pass2FilePath, source.FullName);
+            File.Delete(pass2FilePath);
+
+            switch (queue)
+            {
+                case "VIP":
+                    Program.VIPprocessing = false;
+                    Program.VIP.Remove(Program.VIP.First());
+                    break;
+                case "lt6":
+                    Program.lt6processing = false;
+                    Program.lt6.Remove(Program.lt6.First());
+                    break;
+                case "moet6":
+                    Program.moet6processing = false;
+                    Program.moet6.Remove(Program.moet6.First());
+                    break;
+            }
         }
 
         public static void RebuildFile(string filePath)
         {
-            Console.WriteLine("Started rebuilding");
+            Console.WriteLine("Rebuid");
             string dataFolder =
                     Path.Combine(Path.GetDirectoryName(filePath),
                     Path.GetFileNameWithoutExtension(filePath));
@@ -194,25 +310,33 @@ namespace Dissertacao
                 Path.Combine(Path.GetDirectoryName(filePath),
                     Path.GetFileNameWithoutExtension(filePath) + "\\" + Path.GetFileNameWithoutExtension(filePath) + "p" + Path.GetExtension(filePath));
 
-            startInfo.RedirectStandardOutput = true;
-            startInfo.UseShellExecute = false;
-            Console.WriteLine(startInfo.Arguments);
+            //startInfo.RedirectStandardOutput = true;
+            //startInfo.UseShellExecute = false;
+            //Console.WriteLine(startInfo.Arguments);
 
             process.StartInfo = startInfo;
             process.Start();
             process.WaitForExit();
 
-            string q = "";
-            while (!process.HasExited)
-            {
-                q += process.StandardOutput.ReadToEnd();
-            }
+            //string q = "";
+            //while (!process.HasExited)
+            //{
+            //    q += process.StandardOutput.ReadToEnd();
+            //}
 
-            Program.availableCores++;
+            Interlocked.Increment(ref Program.availableCores);
+            try
+            {
+                Program.availableCores++;
+            }
+            finally
+            {
+                System.Threading.Interlocked.Decrement(ref Program.availableCores);
+            }
 
             Program.workflows.Remove(Program.workflows.Find(x => x.filePath.Equals(filePath)));
 
-            Console.WriteLine("Finished rebuilding");
+            //Console.WriteLine("Finished rebuilding");
         }
 
         private static void WriteListFile(string destinationFolder)

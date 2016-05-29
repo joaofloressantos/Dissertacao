@@ -1,0 +1,17 @@
+ffmpeg -i test.mp4 -f segment -segment_time 5 -reset_timestamps 1 -c copy test\%03d.mp4
+
+ffmpeg -y -i MVI_0895.MOV -threads 1 -pass 1 -s 1280x720 -preset medium -vprofile baseline -c:v libx264 -level 3.0 -vf "format=yuv420p" -b:v 2000k -maxrate:v 2688k -bufsize:v 2688k -r 25 -g 25 -keyint_min 50 -x264opts "keyint=50:min-keyint=50:no-scenecut" -an -f mp4 -movflags faststart 000pass1.mp4
+        
+                
+ffmpeg -y -i 000pass1.mp4 -threads 1 -pass 2 -s 1280x720 -preset medium -vprofile baseline -c:v libx264 -level 3.0 -vf "format=yuv420p" -b:v 2000k -maxrate:v 2688k -bufsize:v 2688k -r 25 -g 25 -keyint_min 50 -x264opts "keyint=50:min-keyint=50:no-scenecut" -acodec libfaac -ac 2 -ar 48000 -ab 128k -f mp4 -movflags faststart 000pass2.mp4
+
+
+     
+                ffmpeg -f concat -safe 0 -i " + dataFolder + "\\list.txt" + " -c copy " +
+                Path.Combine(Path.GetDirectoryName(filePath),
+                    Path.GetFileNameWithoutExtension(filePath) + "\\" + Path.GetFileNameWithoutExtension(filePath) + "p" + Path.GetExtension(filePath));
+                    
+                    
+ffmpeg -y -i MVI_0895.MOV -threads 1 -pass 1 -s 1280x720 -preset medium -vprofile baseline -c:v libx264 -level 3.0 -vf "format=yuv420p" -b:v 2000k -maxrate:v 2688k -bufsize:v 2688k -r 25 -g 25 -keyint_min 50 -x264opts "keyint=50:min-keyint=50:no-scenecut" -an -f mp4 -movflags faststart temp.mp4
+
+ffmpeg -y -i MVI_0895.MOV -threads 1 -pass 2 -s 1280x720 -preset medium -vprofile baseline -c:v libx264 -level 3.0 -vf "format=yuv420p" -b:v 2000k -maxrate:v 2688k -bufsize:v 2688k -r 25 -g 25 -keyint_min 50 -x264opts "keyint=50:min-keyint=50:no-scenecut" -acodec libfaac -ac 2 -ar 48000 -ab 128k -f mp4 -movflags faststart MVI_0895p.mp4
