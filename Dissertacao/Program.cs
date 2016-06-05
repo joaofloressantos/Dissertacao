@@ -123,6 +123,7 @@ namespace Dissertacao
                     break;
 
                 case "MW-DBS":
+                    MWDBS(source, chunkDuration);
                     break;
 
                 case "Original":
@@ -135,7 +136,28 @@ namespace Dissertacao
             }
 
             Console.ReadKey();
-        }  
+        }
+
+        private static void MWDBS(string source, double chunkDuration)
+        {
+            /*
+                2: for ti;j 2 Ready Tasks pool do
+                    3: Assign a priority rankD(ti;j)
+                4: end for
+                5: Pfree   free processors pk 2 P
+                6: while (Ready Tasks 6=  & Pfree 6= ) do
+                    7: tcurr   task with highest priority
+                    8: for pk 2 Padmissible do
+                        9: Calculate Quality Measure Q(tcurr; pk)
+                    10: end for
+                    11: Psel   Processor pk with highest Q
+                    12: Assign current task tcurr to Psel
+                    13: Update RBj and RCAj
+                    14: Pfree   Pfree 􀀀 Psel
+                    15: Remove Task tcurr from Ready Tasks pool
+                16: end while
+            */
+        }
 
         private static void Original(string source)
         {

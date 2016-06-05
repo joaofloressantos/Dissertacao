@@ -12,6 +12,7 @@ namespace Dissertacao
         public int chunkTasks;
         public int chunkTasksDone;
         public int nChunks;
+        public double processTimeSync;
         public double lastChunkDuration;
         public bool isDivided { get; set; }
         public DateTime beginTime { get; set; }
@@ -28,6 +29,8 @@ namespace Dissertacao
             chunkTasksDone = 0;
 
             fileDuration = (double)Utilities.GetFileDuration(filePath);
+
+            processTimeSync = (double)Utilities.CalculateChunkProcessingTime(fileDuration);
 
             tasks = new List<Task>();
 
