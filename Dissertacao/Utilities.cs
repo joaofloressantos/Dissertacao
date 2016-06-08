@@ -44,7 +44,6 @@ namespace Dissertacao
 
         public static void DivideToChunks(string filePath, double chunkDuration)
         {
-            Console.WriteLine("Divide");
             if (!File.Exists(filePath))
             {
                 Console.Error.WriteLine("Invalid file path supplied.");
@@ -65,7 +64,7 @@ namespace Dissertacao
 
             //startInfo.RedirectStandardOutput = true;
             //startInfo.UseShellExecute = false;
-            Console.WriteLine(startInfo.Arguments);
+            //Console.WriteLine(startInfo.Arguments);
 
             process.StartInfo = startInfo;
             process.Start();
@@ -77,13 +76,16 @@ namespace Dissertacao
             //    q += process.StandardOutput.ReadToEnd();
             //}
 
-            WriteListFile(destinationFolder);
-
             foreach (Workflow workflow in Program.workflows)
             {
                 if (workflow.filePath == filePath)
+                {
                     workflow.isDivided = true;
+                    workflow.isDividing = false;
+                }
             }
+
+            WriteListFile(destinationFolder);
 
             Interlocked.Increment(ref Program.availableCores);
             try
@@ -98,7 +100,6 @@ namespace Dissertacao
 
         public static void ProcessChunk(string chunkPath)
         {
-            Console.WriteLine("Process");
             if (!File.Exists(chunkPath))
             {
                 Console.Error.WriteLine("Invalid chunk path supplied. Path: " + chunkPath);
@@ -194,13 +195,21 @@ namespace Dissertacao
                     {
                         System.Threading.Interlocked.Decrement(ref w.chunkTasksDone);
                     }
+                    Interlocked.Increment(ref w.chunksProcessing);
+                    try
+                    {
+                        w.chunksProcessing--;
+                    }
+                    finally
+                    {
+                        System.Threading.Interlocked.Decrement(ref w.chunksProcessing);
+                    }
                 }
             }
         }
 
         public static void ProcessFile(string filePath, string queue)
         {
-            Console.WriteLine("ProcessFile");
             if (!File.Exists(filePath))
             {
                 Console.Error.WriteLine("Invalid file path supplied. Path: " + filePath);
@@ -278,10 +287,12 @@ namespace Dissertacao
                     Program.VIPprocessing = false;
                     Program.VIP.Remove(Program.VIP.First());
                     break;
+
                 case "lt6":
                     Program.lt6processing = false;
                     Program.lt6.Remove(Program.lt6.First());
                     break;
+
                 case "moet6":
                     Program.moet6processing = false;
                     Program.moet6.Remove(Program.moet6.First());
@@ -291,7 +302,6 @@ namespace Dissertacao
 
         public static void RebuildFile(string filePath)
         {
-            Console.WriteLine("Rebuid");
             string dataFolder =
                     Path.Combine(Path.GetDirectoryName(filePath),
                     Path.GetFileNameWithoutExtension(filePath));

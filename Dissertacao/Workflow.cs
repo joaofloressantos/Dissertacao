@@ -18,6 +18,8 @@ namespace Dissertacao
         public DateTime beginTime { get; set; }
         public DateTime endTime { get; set; }
         public bool rankusCalculated { get; set; }
+        public bool isDividing = false;
+        internal int chunksProcessing;
 
         public Workflow(string filePath, double chunkDuration)
         {
