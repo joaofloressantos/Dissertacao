@@ -15,6 +15,7 @@ namespace Dissertacao
 
         public static double? GetFileDuration(string filePath)
         {
+            Thread.Sleep(100);
             double? duration;
             MediaFile videoFile = new MediaFile { Filename = filePath };
 
@@ -176,8 +177,9 @@ namespace Dissertacao
             }
         }
 
-        public static void ProcessFile(string filePath, string queue)
+        public static void ProcessFile(string filePath)
         {
+            Console.WriteLine("Processando " + filePath);
             if (!File.Exists(filePath))
             {
                 Console.Error.WriteLine("Invalid file path supplied. Path: " + filePath);
@@ -185,8 +187,12 @@ namespace Dissertacao
             }
 
             FileInfo source = new FileInfo(filePath);
-            String pass1FilePath = source.Directory + "\\" + Path.GetFileNameWithoutExtension(source.Name) + "pass1.mp4";
-            String pass2FilePath = source.Directory + "\\" + Path.GetFileNameWithoutExtension(source.Name) + "pass2.mp4";
+            String fileName = Path.GetFileNameWithoutExtension(source.Name);
+            String destinationFolder = source.Directory + "\\" + fileName + "\\";
+            Directory.CreateDirectory(destinationFolder);
+
+            String pass1FilePath = destinationFolder + Path.GetFileNameWithoutExtension(source.Name) + "pass1";
+            String pass2FilePath = destinationFolder + Path.GetFileNameWithoutExtension(source.Name) + "pass2.mp4";
 
             System.Diagnostics.Process process = new System.Diagnostics.Process();
             System.Diagnostics.ProcessStartInfo startInfo = new System.Diagnostics.ProcessStartInfo();
@@ -244,25 +250,9 @@ namespace Dissertacao
             //}
 
             File.Delete(source.FullName);
-            File.Move(pass2FilePath, source.FullName);
+            File.Move(pass2FilePath, destinationFolder + source.Name);
 
-            switch (queue)
-            {
-                case "VIP":
-                    Program.VIPprocessing = false;
-                    Program.VIP.Remove(Program.VIP.First());
-                    break;
-
-                case "lt6":
-                    Program.lt6processing = false;
-                    Program.lt6.Remove(Program.lt6.First());
-                    break;
-
-                case "moet6":
-                    Program.moet6processing = false;
-                    Program.moet6.Remove(Program.moet6.First());
-                    break;
-            }
+            Program.workflowsInProgress.Remove(Program.workflowsInProgress.Where(x => x.filePath == filePath).ToList().First());
         }
 
         public static void RebuildFile(string filePath)

@@ -61,14 +61,12 @@ namespace Dissertacao
         public static List<Workflow> workflows = new List<Workflow>();
 
         // For original algorithm
-        public static bool VIPprocessing;
-
-        public static bool lt6processing;
-        public static bool moet6processing;
         public static double queueThreshold = 8;
+
         public static List<Workflow> VIP;
         public static List<Workflow> lt6;
         public static List<Workflow> moet6;
+        public static List<Workflow> workflowsInProgress;
 
         #endregion Globals
 
@@ -164,9 +162,7 @@ namespace Dissertacao
             VIP = new List<Workflow>();
             lt6 = new List<Workflow>();
             moet6 = new List<Workflow>();
-            VIPprocessing = false;
-            lt6processing = false;
-            moet6processing = false;
+            workflowsInProgress = new List<Workflow>();
 
             // Adding files in source folder to Task list
             AddWorkflows(ReadAllFilesInFolder(source));
@@ -177,45 +173,52 @@ namespace Dissertacao
             watcher.Filter = "*.*";
             watcher.Created += new FileSystemEventHandler(OnFolderChanged);
 
-            while (workflows.Count() > 0 || VIP.Count() > 0 || lt6.Count() > 0 || moet6.Count() > 0)
+            while (workflowsInProgress.Count() > 0 || workflows.Count() > 0 || VIP.Count() > 0 || lt6.Count() > 0 || moet6.Count() > 0)
             {
                 if (availableCores > 0)
                 {
                     VIP.AddRange(getVIPworkflows());
                     lt6.AddRange(getLt6workflows());
                     moet6.AddRange(getMoet6workflows());
-
                     Random r = new Random();
                     int rInt = r.Next(0, 100);
 
-                    if (rInt <= 40 && !VIPprocessing)
+                    if (rInt <= 40 && VIP.Count() > 0)
                     {
+                        string filePath = VIP.First().filePath;
                         decrementAvailableCores();
                         new Thread(delegate ()
                         {
-                            Utilities.ProcessFile(VIP.First().filePath, "VIP");
+                            Utilities.ProcessFile(filePath);
                         }).Start();
+                        workflowsInProgress.Add(VIP.First());
+                        VIP.Remove(VIP.First());
                         continue;
                     }
 
-                    if (rInt <= 70 && !lt6processing)
+                    if (rInt <= 70 && lt6.Count() > 0)
                     {
+                        string filePath = lt6.First().filePath;
                         decrementAvailableCores();
                         new Thread(delegate ()
                         {
-                            Utilities.ProcessFile(lt6.First().filePath, "lt6");
+                            Utilities.ProcessFile(filePath);
                         }).Start();
+                        workflowsInProgress.Add(lt6.First());
+                        lt6.Remove(lt6.First());
                         continue;
                     }
 
-                    if (!moet6processing)
+                    if (moet6.Count() > 0)
                     {
+                        string filePath = moet6.First().filePath;
                         decrementAvailableCores();
                         new Thread(delegate ()
                         {
-                            Utilities.ProcessFile(moet6.First().filePath, "moet6");
+                            Utilities.ProcessFile(filePath);
                         }).Start();
-                        continue;
+                        workflowsInProgress.Add(moet6.First());
+                        moet6.Remove(moet6.First());
                     }
                 }
             }
@@ -667,7 +670,7 @@ namespace Dissertacao
                 AddWorkflows(new string[] { e.FullPath });
             }
         }
-        
+
         public static void incrementChunksProcessing(Workflow workflow)
         {
             Interlocked.Increment(ref workflow.chunksProcessing);
