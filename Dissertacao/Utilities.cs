@@ -87,15 +87,7 @@ namespace Dissertacao
 
             WriteListFile(destinationFolder);
 
-            Interlocked.Increment(ref Program.availableCores);
-            try
-            {
-                Program.availableCores++;
-            }
-            finally
-            {
-                System.Threading.Interlocked.Decrement(ref Program.availableCores);
-            }
+            Program.incrementAvailableCores();
         }
 
         public static void ProcessChunk(string chunkPath)
@@ -172,38 +164,14 @@ namespace Dissertacao
             File.Copy(pass2FilePath, source.FullName);
             File.Delete(pass2FilePath);
 
-            Interlocked.Increment(ref Program.availableCores);
-            try
-            {
-                Program.availableCores++;
-            }
-            finally
-            {
-                System.Threading.Interlocked.Decrement(ref Program.availableCores);
-            }
+            Program.incrementAvailableCores();
 
             foreach (Workflow w in Program.workflows)
             {
                 if (w.filePath == Path.GetDirectoryName(chunkPath) + Path.GetExtension(chunkPath))
                 {
-                    Interlocked.Increment(ref w.chunkTasksDone);
-                    try
-                    {
-                        w.chunkTasksDone++;
-                    }
-                    finally
-                    {
-                        System.Threading.Interlocked.Decrement(ref w.chunkTasksDone);
-                    }
-                    Interlocked.Increment(ref w.chunksProcessing);
-                    try
-                    {
-                        w.chunksProcessing--;
-                    }
-                    finally
-                    {
-                        System.Threading.Interlocked.Decrement(ref w.chunksProcessing);
-                    }
+                    Program.incrementChunkTasksDone(w);
+                    Program.decrementChunksProcessing(w);
                 }
             }
         }
@@ -275,11 +243,8 @@ namespace Dissertacao
             //    q += process.StandardOutput.ReadToEnd();
             //}
 
-            // Deleting original chunk
-
             File.Delete(source.FullName);
-            File.Copy(pass2FilePath, source.FullName);
-            File.Delete(pass2FilePath);
+            File.Move(pass2FilePath, source.FullName);
 
             switch (queue)
             {
@@ -334,15 +299,7 @@ namespace Dissertacao
             //    q += process.StandardOutput.ReadToEnd();
             //}
 
-            Interlocked.Increment(ref Program.availableCores);
-            try
-            {
-                Program.availableCores++;
-            }
-            finally
-            {
-                System.Threading.Interlocked.Decrement(ref Program.availableCores);
-            }
+            Program.incrementAvailableCores();
 
             Program.workflows.Remove(Program.workflows.Find(x => x.filePath.Equals(filePath)));
 

@@ -65,7 +65,7 @@ namespace Dissertacao
 
         public static bool lt6processing;
         public static bool moet6processing;
-        public static double queueThreshold = 7;
+        public static double queueThreshold = 8;
         public static List<Workflow> VIP;
         public static List<Workflow> lt6;
         public static List<Workflow> moet6;
@@ -179,51 +179,56 @@ namespace Dissertacao
 
             while (workflows.Count() > 0 || VIP.Count() > 0 || lt6.Count() > 0 || moet6.Count() > 0)
             {
-                VIP.AddRange(getVIPworkflows());
-                lt6.AddRange(getLt6workflows());
-                moet6.AddRange(getMoet6workflows());
-
-                Random r = new Random();
-                int rInt = r.Next(0, 100);
-
-
-                if (rInt <= 40 && !VIPprocessing)
+                if (availableCores > 0)
                 {
-                    new Thread(delegate ()
-                    {
-                        Utilities.ProcessFile(VIP.First().filePath, "VIP");
-                    }).Start();
-                    continue;
-                }
+                    VIP.AddRange(getVIPworkflows());
+                    lt6.AddRange(getLt6workflows());
+                    moet6.AddRange(getMoet6workflows());
 
-                if (rInt <= 70 && !lt6processing)
-                {
-                    new Thread(delegate ()
-                    {
-                        Utilities.ProcessFile(lt6.First().filePath, "lt6");
-                    }).Start();
-                    continue;
-                }
+                    Random r = new Random();
+                    int rInt = r.Next(0, 100);
 
-                if (!moet6processing)
-                {
-                    new Thread(delegate ()
+                    if (rInt <= 40 && !VIPprocessing)
                     {
-                        Utilities.ProcessFile(moet6.First().filePath, "moet6");
-                    }).Start();
-                    continue;
+                        decrementAvailableCores();
+                        new Thread(delegate ()
+                        {
+                            Utilities.ProcessFile(VIP.First().filePath, "VIP");
+                        }).Start();
+                        continue;
+                    }
+
+                    if (rInt <= 70 && !lt6processing)
+                    {
+                        decrementAvailableCores();
+                        new Thread(delegate ()
+                        {
+                            Utilities.ProcessFile(lt6.First().filePath, "lt6");
+                        }).Start();
+                        continue;
+                    }
+
+                    if (!moet6processing)
+                    {
+                        decrementAvailableCores();
+                        new Thread(delegate ()
+                        {
+                            Utilities.ProcessFile(moet6.First().filePath, "moet6");
+                        }).Start();
+                        continue;
+                    }
                 }
             }
         }
 
-        private static IEnumerable<Workflow> getMoet6workflows()
+        private static List<Workflow> getMoet6workflows()
         {
             List<Workflow> result = workflows.Where(x => x.fileDuration >= queueThreshold).ToList();
             workflows.RemoveAll(x => x.fileDuration >= queueThreshold);
             return result;
         }
 
-        private static IEnumerable<Workflow> getLt6workflows()
+        private static List<Workflow> getLt6workflows()
         {
             List<Workflow> result = workflows.Where(x => x.fileDuration < queueThreshold).ToList();
             workflows.RemoveAll(x => x.fileDuration < queueThreshold);
@@ -236,7 +241,6 @@ namespace Dissertacao
             workflows.RemoveAll(x => x.filePath.Contains("VIP"));
             return result;
         }
-
 
         // DONE
 
@@ -268,7 +272,6 @@ namespace Dissertacao
                     Thread.Sleep(100);
                     unrankedWorkflows = workflows.Where(x => x.rankusCalculated == false).ToList();
                 }
-
 
                 // TODO: Check if working and refactor (RankHybd also has this)
                 foreach (Workflow workflow in unrankedWorkflows)
@@ -533,15 +536,7 @@ namespace Dissertacao
 
         private static void ProcessTask(Task task)
         {
-            Interlocked.Increment(ref Program.availableCores);
-            try
-            {
-                Program.availableCores--;
-            }
-            finally
-            {
-                System.Threading.Interlocked.Decrement(ref Program.availableCores);
-            }
+            decrementAvailableCores();
 
             switch (task.Type)
             {
@@ -562,15 +557,7 @@ namespace Dissertacao
                     {
                         if (workflow.filePath == Path.GetDirectoryName(task.FilePath) + Path.GetExtension(task.FilePath))
                         {
-                            Interlocked.Increment(ref workflow.chunksProcessing);
-                            try
-                            {
-                                workflow.chunksProcessing++;
-                            }
-                            finally
-                            {
-                                System.Threading.Interlocked.Decrement(ref workflow.chunksProcessing);
-                            }
+                            incrementChunksProcessing(workflow);
                         }
                     }
 
@@ -678,6 +665,71 @@ namespace Dissertacao
             {
                 Thread.Sleep(1000); // To make sure file is completely stable in Windows
                 AddWorkflows(new string[] { e.FullPath });
+            }
+        }
+        
+        public static void incrementChunksProcessing(Workflow workflow)
+        {
+            Interlocked.Increment(ref workflow.chunksProcessing);
+            try
+            {
+                workflow.chunksProcessing++;
+            }
+            finally
+            {
+                System.Threading.Interlocked.Decrement(ref workflow.chunksProcessing);
+            }
+        }
+
+        public static void decrementChunksProcessing(Workflow w)
+        {
+            Interlocked.Increment(ref w.chunksProcessing);
+            try
+            {
+                w.chunksProcessing--;
+            }
+            finally
+            {
+                System.Threading.Interlocked.Decrement(ref w.chunksProcessing);
+            }
+        }
+
+        public static void incrementAvailableCores()
+        {
+            Interlocked.Increment(ref Program.availableCores);
+            try
+            {
+                Program.availableCores++;
+            }
+            finally
+            {
+                System.Threading.Interlocked.Decrement(ref Program.availableCores);
+            }
+        }
+
+        public static void decrementAvailableCores()
+        {
+            Interlocked.Increment(ref Program.availableCores);
+            try
+            {
+                Program.availableCores--;
+            }
+            finally
+            {
+                System.Threading.Interlocked.Decrement(ref Program.availableCores);
+            }
+        }
+
+        public static void incrementChunkTasksDone(Workflow w)
+        {
+            Interlocked.Increment(ref w.chunkTasksDone);
+            try
+            {
+                w.chunkTasksDone++;
+            }
+            finally
+            {
+                System.Threading.Interlocked.Decrement(ref w.chunkTasksDone);
             }
         }
     }
