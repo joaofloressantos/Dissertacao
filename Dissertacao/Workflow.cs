@@ -57,7 +57,6 @@ namespace Dissertacao
 
             if (lastChunkDuration > 0)
             {
-                //i += 1;
                 string chunkPath =
                     Path.Combine(Path.GetDirectoryName(filePath),
                     Path.GetFileNameWithoutExtension(filePath),

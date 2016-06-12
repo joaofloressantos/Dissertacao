@@ -7,6 +7,7 @@
         public double TimeToProcess { get; set; }
         public double ranku { get; set; }
         public double rankr { get; set; }
+        public double rankd { get; set; }
 
         public Task(string Type, string FilePath, double TimeToProcess)
         {
@@ -15,6 +16,7 @@
             this.FilePath = FilePath;
             this.ranku = 0;
             this.rankr = 0;
+            this.rankd = 0;
         }
         
     }

@@ -77,18 +77,13 @@ namespace Dissertacao
             //    q += process.StandardOutput.ReadToEnd();
             //}
 
-            foreach (Workflow workflow in Program.workflows)
-            {
-                if (workflow.filePath == filePath)
-                {
-                    workflow.isDivided = true;
-                    workflow.isDividing = false;
-                }
-            }
-
             WriteListFile(destinationFolder);
 
-            Program.incrementAvailableCores();
+            Program.IncrementAvailableCores();
+
+            Workflow w = Program.GetWorkflowFromPath(filePath);
+            w.isDivided = true;
+            w.isDividing = false;
         }
 
         public static void ProcessChunk(string chunkPath)
@@ -165,14 +160,14 @@ namespace Dissertacao
             File.Copy(pass2FilePath, source.FullName);
             File.Delete(pass2FilePath);
 
-            Program.incrementAvailableCores();
+            Program.IncrementAvailableCores();
 
             foreach (Workflow w in Program.workflows)
             {
                 if (w.filePath == Path.GetDirectoryName(chunkPath) + Path.GetExtension(chunkPath))
                 {
-                    Program.incrementChunkTasksDone(w);
-                    Program.decrementChunksProcessing(w);
+                    Program.IncrementChunkTasksDone(w);
+                    Program.DecrementChunksProcessing(w);
                 }
             }
         }
@@ -289,11 +284,9 @@ namespace Dissertacao
             //    q += process.StandardOutput.ReadToEnd();
             //}
 
-            Program.incrementAvailableCores();
+            Program.IncrementAvailableCores();
 
             Program.workflows.Remove(Program.workflows.Find(x => x.filePath.Equals(filePath)));
-
-            //Console.WriteLine("Finished rebuilding");
         }
 
         private static void WriteListFile(string destinationFolder)

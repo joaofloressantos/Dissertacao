@@ -17,10 +17,6 @@ namespace Dissertacao
           HelpText = "Source video file folder name/path")]
         public string Source { get; set; }
 
-        //[Option('d', "destination", DefaultValue = "ProcessedVideos",
-        //  HelpText = "Destination video file folder name/path")]
-        //public string Destination { get; set; }
-
         [Option('t', "chunkSize", DefaultValue = 5,
           HelpText = "Desired duration of each video file chunk")]
         public double Duration { get; set; }
@@ -89,7 +85,6 @@ namespace Dissertacao
                 chunkDuration = options.Duration;
                 source = options.Source;
                 algorithm = options.Algorithm;
-                //destination = options.Destination;
 
                 // Values are available here
                 Console.WriteLine("SELECTED OPTIONS: \n");
@@ -132,29 +127,36 @@ namespace Dissertacao
                     Console.WriteLine("Chosen algorithm not available. Exiting...");
                     return;
             }
-
-            Console.ReadKey();
         }
+
+        /// /////////////////////////////////////////
+        // Algorithms
+        /// /////////////////////////////////////////
 
         private static void MWDBS(string source, double chunkDuration)
         {
-            /*
-                2: for ti;j 2 Ready Tasks pool do
-                    3: Assign a priority rankD(ti;j)
-                4: end for
-                5: Pfree   free processors pk 2 P
-                6: while (Ready Tasks 6=  & Pfree 6= ) do
-                    7: tcurr   task with highest priority
-                    8: for pk 2 Padmissible do
-                        9: Calculate Quality Measure Q(tcurr; pk)
-                    10: end for
-                    11: Psel   Processor pk with highest Q
-                    12: Assign current task tcurr to Psel
-                    13: Update RBj and RCAj
-                    14: Pfree   Pfree 􀀀 Psel
-                    15: Remove Task tcurr from Ready Tasks pool
-                16: end while
-            */
+            InitialWorkflowCheck(source);
+
+            // CENAS PARA TIMING
+            /*var watch = System.Diagnostics.Stopwatch.StartNew();
+            double elapsedMs = watch.ElapsedMilliseconds;*/
+
+            while (workflows.Count() > 0)
+            {
+                List<Task> readyTasks = new List<Task>();
+                List<Workflow> unrankedWorkflows = GetUnrankedWorkflows();
+
+                CalculateRankus(unrankedWorkflows);
+
+                readyTasks = GetHighestRankuTaskFromEachWorkflow();
+                readyTasks = ComputeRankD(readyTasks);
+
+                while (readyTasks.Count > 0 && availableCores > 0)
+                {
+                    ProcessTask(readyTasks.OrderByDescending(x => x.rankd).ToList().First());
+                    readyTasks.Remove(readyTasks.OrderByDescending(x => x.rankd).ToList().First());
+                }
+            }
         }
 
         private static void Original(string source)
@@ -164,29 +166,23 @@ namespace Dissertacao
             moet6 = new List<Workflow>();
             workflowsInProgress = new List<Workflow>();
 
-            // Adding files in source folder to Task list
-            AddWorkflows(ReadAllFilesInFolder(source));
-
-            //// Creating file watcher for source folder
-            FileSystemWatcher watcher = new FileSystemWatcher(source);
-            watcher.EnableRaisingEvents = true;
-            watcher.Filter = "*.*";
-            watcher.Created += new FileSystemEventHandler(OnFolderChanged);
+            InitialWorkflowCheck(source);
 
             while (workflowsInProgress.Count() > 0 || workflows.Count() > 0 || VIP.Count() > 0 || lt6.Count() > 0 || moet6.Count() > 0)
             {
                 if (availableCores > 0)
                 {
-                    VIP.AddRange(getVIPworkflows());
-                    lt6.AddRange(getLt6workflows());
-                    moet6.AddRange(getMoet6workflows());
+                    VIP.AddRange(GetVIPworkflows());
+                    lt6.AddRange(GetLt6workflows());
+                    moet6.AddRange(GetMoet6workflows());
+
                     Random r = new Random();
                     int rInt = r.Next(0, 100);
 
                     if (rInt <= 40 && VIP.Count() > 0)
                     {
                         string filePath = VIP.First().filePath;
-                        decrementAvailableCores();
+                        DecrementAvailableCores();
                         new Thread(delegate ()
                         {
                             Utilities.ProcessFile(filePath);
@@ -199,7 +195,7 @@ namespace Dissertacao
                     if (rInt <= 70 && lt6.Count() > 0)
                     {
                         string filePath = lt6.First().filePath;
-                        decrementAvailableCores();
+                        DecrementAvailableCores();
                         new Thread(delegate ()
                         {
                             Utilities.ProcessFile(filePath);
@@ -212,7 +208,7 @@ namespace Dissertacao
                     if (moet6.Count() > 0)
                     {
                         string filePath = moet6.First().filePath;
-                        decrementAvailableCores();
+                        DecrementAvailableCores();
                         new Thread(delegate ()
                         {
                             Utilities.ProcessFile(filePath);
@@ -224,39 +220,9 @@ namespace Dissertacao
             }
         }
 
-        private static List<Workflow> getMoet6workflows()
-        {
-            List<Workflow> result = workflows.Where(x => x.fileDuration >= queueThreshold).ToList();
-            workflows.RemoveAll(x => x.fileDuration >= queueThreshold);
-            return result;
-        }
-
-        private static List<Workflow> getLt6workflows()
-        {
-            List<Workflow> result = workflows.Where(x => x.fileDuration < queueThreshold).ToList();
-            workflows.RemoveAll(x => x.fileDuration < queueThreshold);
-            return result;
-        }
-
-        private static List<Workflow> getVIPworkflows()
-        {
-            List<Workflow> result = workflows.Where(x => x.filePath.Contains("VIP")).ToList();
-            workflows.RemoveAll(x => x.filePath.Contains("VIP"));
-            return result;
-        }
-
-        // DONE
-
         private static void FDWS(string source, double chunkDuration)
         {
-            // Adding files in source folder to Task list
-            AddWorkflows(ReadAllFilesInFolder(source));
-
-            //// Creating file watcher for source folder
-            FileSystemWatcher watcher = new FileSystemWatcher(source);
-            watcher.EnableRaisingEvents = true;
-            watcher.Filter = "*.*";
-            watcher.Created += new FileSystemEventHandler(OnFolderChanged);
+            InitialWorkflowCheck(source);
 
             // CENAS PARA TIMING
             /*var watch = System.Diagnostics.Stopwatch.StartNew();
@@ -265,29 +231,13 @@ namespace Dissertacao
             while (workflows.Count() > 0)
             {
                 List<Task> readyTasks = new List<Task>();
-                List<Workflow> unrankedWorkflows = new List<Workflow>();
-                try
-                {
-                    unrankedWorkflows = workflows.Where(x => x.rankusCalculated == false).ToList();
-                }
-                catch
-                {
-                    Thread.Sleep(100);
-                    unrankedWorkflows = workflows.Where(x => x.rankusCalculated == false).ToList();
-                }
+                List<Workflow> unrankedWorkflows = GetUnrankedWorkflows();
 
                 // TODO: Check if working and refactor (RankHybd also has this)
-                foreach (Workflow workflow in unrankedWorkflows)
-                {
-                    foreach (Task task in workflow.tasks)
-                    {
-                        CalculateRanku(task);
-                    }
-                    workflow.rankusCalculated = true;
-                }
+                CalculateRankus(unrankedWorkflows);
 
-                readyTasks = getHighestRankuTaskFromEachWorkflow();
-                readyTasks = computeRankr(readyTasks);
+                readyTasks = GetHighestRankuTaskFromEachWorkflow();
+                readyTasks = ComputeRankr(readyTasks);
 
                 while (readyTasks.Count > 0 && availableCores > 0)
                 {
@@ -297,85 +247,9 @@ namespace Dissertacao
             }
         }
 
-        private static List<Task> computeRankr(List<Task> readyTasks)
-        {
-            foreach (Task task in readyTasks)
-            {
-                Workflow w = workflows.Where(x => x.tasks.Contains(task)).ToList().First();
-                w.tasks.Remove(task);
-                int totalTasks = (w.chunkTasks + 2);
-                if (w.isDivided)
-                {
-                    task.rankr = 1 / (((double)totalTasks - (1 + (double)w.chunkTasksDone)) / (double)totalTasks);
-                }
-                else
-                {
-                    task.rankr = 1;
-                }
-            }
-
-            return readyTasks;
-        }
-
-        private static List<Task> getHighestRankuTaskFromEachWorkflow()
-        {
-            List<Task> result = new List<Task>();
-
-            List<Workflow> undividedWorkflows = new List<Workflow>();
-            try
-            {
-                undividedWorkflows = workflows.Where(x => x.isDivided == false && x.isDividing == false).ToList();
-            }
-            catch
-            {
-                Thread.Sleep(100);
-                undividedWorkflows = workflows.Where(x => x.isDivided == false && x.isDividing == false).ToList();
-            }
-            List<Workflow> dividedWorkflows = new List<Workflow>();
-            try
-            {
-                dividedWorkflows = workflows.Where(x => x.isDivided == true).ToList();
-            }
-            catch
-            {
-                Thread.Sleep(100);
-                dividedWorkflows = workflows.Where(x => x.isDivided == true).ToList();
-            }
-
-            foreach (Workflow workflow in undividedWorkflows)
-            {
-                result.Add(workflow.tasks.Where(x => x.Type == "Divide").ToList().First());
-                //workflow.tasks.Remove(workflow.tasks.Where(x => x.Type == "Divide").ToList().First());
-            }
-
-            foreach (Workflow workflow in dividedWorkflows)
-            {
-                // If there are no more chunk tasks it should finally join
-                if (workflow.tasks.Count() > 1)
-                {
-                    result.Add(workflow.tasks.Where(x => x.Type == "Chunk").ToList().OrderByDescending(x => x.ranku).ToList().First());
-                    //workflow.tasks.Remove(workflow.tasks.Where(x => x.Type == "Chunk").ToList().OrderByDescending(x => x.ranku).ToList().First());
-                }
-                else if (workflow.chunksProcessing == 0 && workflow.tasks.Count() == 1)
-                {
-                    result.Add(workflow.tasks.Where(x => x.Type == "Join").ToList().First());
-                    //workflow.tasks.Remove(workflow.tasks.Where(x => x.Type == "Join").ToList().First());
-                }
-            }
-
-            return result;
-        }
-
         private static void OWM(string source, double chunkDuration)
         {
-            // Adding files in source folder to Task list
-            AddWorkflows(ReadAllFilesInFolder(source));
-
-            //// Creating file watcher for source folder
-            FileSystemWatcher watcher = new FileSystemWatcher(source);
-            watcher.EnableRaisingEvents = true;
-            watcher.Filter = "*.*";
-            watcher.Created += new FileSystemEventHandler(OnFolderChanged);
+            InitialWorkflowCheck(source);
 
             // CENAS PARA TIMING
             /*var watch = System.Diagnostics.Stopwatch.StartNew();
@@ -396,7 +270,7 @@ namespace Dissertacao
                     workflow.rankusCalculated = true;
                 }
 
-                readyTasks.AddRange(getHighestRankuTaskFromEachWorkflow());
+                readyTasks.AddRange(GetHighestRankuTaskFromEachWorkflow());
 
                 while (readyTasks.Count() > 0 && availableCores > 0)
                 {
@@ -407,118 +281,9 @@ namespace Dissertacao
             }
         }
 
-        private static List<Task> GetAllReadyTasks()
-        {
-            List<Task> readyTasks = new List<Task>();
-
-            // TODO : Fix this
-
-            List<Workflow> undividedWorkflows = new List<Workflow>();
-            try
-            {
-                undividedWorkflows = workflows.Where(x => x.isDivided == false).ToList();
-            }
-            catch
-            {
-                Thread.Sleep(100);
-                undividedWorkflows = workflows.Where(x => x.isDivided == false).ToList();
-            }
-            List<Workflow> dividedWorkflows = new List<Workflow>();
-            try
-            {
-                dividedWorkflows = workflows.Where(x => x.isDivided == true).ToList();
-            }
-            catch
-            {
-                Thread.Sleep(100);
-                dividedWorkflows = workflows.Where(x => x.isDivided == true).ToList();
-            }
-
-            // If not only the divide task can be added
-            foreach (Workflow workflow in dividedWorkflows)
-            {
-                List<Task> tasksToRemove = new List<Task>();
-                int tasksAdded = 0;
-                foreach (Task task in workflow.tasks)
-                {
-                    if (task.Type == "Chunk")
-                    {
-                        readyTasks.Add(task);
-                        tasksToRemove.Add(task);
-                        tasksAdded++;
-                    }
-                }
-
-                // If there are no more chunk tasks it should finally join
-                if (tasksAdded == 0 && workflow.chunkTasks == workflow.chunkTasksDone)
-                {
-                    foreach (Task task in workflow.tasks)
-                    {
-                        if (task.Type == "Join")
-                        {
-                            readyTasks.Add(task);
-                            tasksToRemove.Add(task);
-                            break;
-                        }
-                    }
-                }
-
-                foreach (Task t in tasksToRemove)
-                {
-                    workflow.tasks.Remove(t);
-                }
-            }
-
-            // If not only the divide task can be added
-            foreach (Workflow workflow in undividedWorkflows)
-            {
-                List<Task> tasksToRemove = new List<Task>();
-                foreach (Task task in workflow.tasks)
-                {
-                    if (task.Type == "Divide")
-                    {
-                        readyTasks.Add(task);
-                        tasksToRemove.Add(task);
-                        break;
-                    }
-                }
-
-                foreach (Task t in tasksToRemove)
-                {
-                    workflow.tasks.Remove(t);
-                }
-            }
-
-            return readyTasks;
-        }
-
-        private static double getNextTaskRanku(Task task)
-        {
-            foreach (Workflow workflow in workflows)
-            {
-                foreach (Task t in workflow.tasks)
-                {
-                    if (task.FilePath == t.FilePath && t.Type == "Chunk")
-                    {
-                        if (t.ranku == 0) t.ranku = t.TimeToProcess;
-                        return t.TimeToProcess;
-                    }
-                }
-            }
-
-            return 0;
-        }
-
         private static void RankHybd(string source, double chunkDuration)
         {
-            // Adding files in source folder to Task list
-            AddWorkflows(ReadAllFilesInFolder(source));
-
-            //// Creating file watcher for source folder
-            FileSystemWatcher watcher = new FileSystemWatcher(source);
-            watcher.EnableRaisingEvents = true;
-            watcher.Filter = "*.*";
-            watcher.Created += new FileSystemEventHandler(OnFolderChanged);
+            InitialWorkflowCheck(source);
 
             // CENAS PARA TIMING
             /*var watch = System.Diagnostics.Stopwatch.StartNew();
@@ -528,7 +293,7 @@ namespace Dissertacao
 
             while (workflows.Count() > 0)
             {
-                readyTasks.AddRange(CheckWorkflows());
+                readyTasks.AddRange(GetReadyTasksRankHybd());
                 while (readyTasks.Count() > 0 && availableCores > 0)
                 {
                     ProcessTask(readyTasks.First());
@@ -537,67 +302,67 @@ namespace Dissertacao
             }
         }
 
-        private static void ProcessTask(Task task)
+        /// /////////////////////////////////////////
+        // Aux Functions
+        /// /////////////////////////////////////////
+
+        private static void InitialWorkflowCheck(string source)
         {
-            decrementAvailableCores();
+            // Adding files in source folder to Task list
+            AddWorkflows(ReadAllFilesInFolder(source));
 
-            switch (task.Type)
+            //// Creating file watcher for source folder
+            FileSystemWatcher watcher = new FileSystemWatcher(source);
+            watcher.EnableRaisingEvents = true;
+            watcher.Filter = "*.*";
+            watcher.Created += new FileSystemEventHandler(OnFolderChanged);
+        }
+
+        private static List<Workflow> GetUnrankedWorkflows()
+        {
+            try
             {
-                case "Divide":
-                    foreach (Workflow workflow in Program.workflows)
-                    {
-                        if (workflow.filePath == task.FilePath)
-                            workflow.isDividing = true;
-                    }
-                    new Thread(delegate ()
-                    {
-                        Utilities.DivideToChunks(task.FilePath, chunkDuration);
-                    }).Start();
-                    break;
-
-                case "Chunk":
-                    foreach (Workflow workflow in Program.workflows)
-                    {
-                        if (workflow.filePath == Path.GetDirectoryName(task.FilePath) + Path.GetExtension(task.FilePath))
-                        {
-                            incrementChunksProcessing(workflow);
-                        }
-                    }
-
-                    new Thread(delegate ()
-                    {
-                        Utilities.ProcessChunk(task.FilePath);
-                    }).Start();
-                    break;
-
-                case "Join":
-                    new Thread(delegate ()
-                    {
-                        Utilities.RebuildFile(task.FilePath);
-                    }).Start();
-                    break;
-
-                default:
-                    break;
+                return workflows.Where(x => x.rankusCalculated == false).ToList();
+            }
+            catch
+            {
+                Thread.Sleep(200);
+                return workflows.Where(x => x.rankusCalculated == false).ToList();
             }
         }
 
-        private static List<Task> CheckWorkflows()
+        public static Workflow GetWorkflowFromTask(Task task)
+        {
+            try
+            {
+                return Program.workflows.Where(x => x.tasks.Contains(task)).ToList().First();
+            }
+            catch
+            {
+                Thread.Sleep(200);
+                return Program.workflows.Where(x => x.tasks.Contains(task)).ToList().First();
+            }
+        }
+
+        public static Workflow GetWorkflowFromPath(string filePath)
+        {
+            return workflows.Where(x => x.filePath == filePath).ToList().First();
+        }
+
+        private static List<Task> GetReadyTasksRankHybd()
         {
             List<Task> readyTasks = new List<Task>();
             List<Workflow> unrankedWorkflows = workflows.Where(x => x.rankusCalculated == false).ToList();
 
             foreach (Workflow workflow in unrankedWorkflows)
             {
-                if (!workflow.rankusCalculated)
+                foreach (Task task in workflow.tasks)
                 {
-                    foreach (Task task in workflow.tasks)
-                    {
-                        CalculateRanku(task);
-                    }
-                    workflow.rankusCalculated = true;
+                    CalculateRanku(task);
                 }
+                workflow.rankusCalculated = true;
             }
+
             readyTasks = GetAllReadyTasks();
 
             int multiple = GetNumberOfDifferentWorkflowsInPool(readyTasks);
@@ -627,27 +392,6 @@ namespace Dissertacao
             }
         }
 
-        private static void CalculateRanku(Task task)
-        {
-            switch (task.Type)
-            {
-                case "Join":
-                    task.ranku = 0;
-                    break;
-
-                case "Divide":
-                    task.ranku = task.TimeToProcess + getNextTaskRanku(task);
-                    break;
-
-                case "Chunk":
-                    task.ranku = task.TimeToProcess;
-                    break;
-
-                default:
-                    break;
-            }
-        }
-
         private static string[] ReadAllFilesInFolder(string source)
         {
             return Directory
@@ -671,7 +415,269 @@ namespace Dissertacao
             }
         }
 
-        public static void incrementChunksProcessing(Workflow workflow)
+        private static List<Workflow> GetMoet6workflows()
+        {
+            List<Workflow> result = workflows.Where(x => x.fileDuration >= queueThreshold).ToList();
+            workflows.RemoveAll(x => x.fileDuration >= queueThreshold);
+            return result;
+        }
+
+        private static List<Workflow> GetLt6workflows()
+        {
+            List<Workflow> result = workflows.Where(x => x.fileDuration < queueThreshold).ToList();
+            workflows.RemoveAll(x => x.fileDuration < queueThreshold);
+            return result;
+        }
+
+        private static List<Workflow> GetVIPworkflows()
+        {
+            List<Workflow> result = workflows.Where(x => x.filePath.Contains("VIP")).ToList();
+            workflows.RemoveAll(x => x.filePath.Contains("VIP"));
+            return result;
+        }
+
+        private static void ProcessTask(Task task)
+        {
+            DecrementAvailableCores();
+            Workflow w = GetWorkflowFromTask(task);
+
+            switch (task.Type)
+            {
+                case "Divide":
+                    w.isDividing = true;
+                    new Thread(delegate ()
+                    {
+                        Utilities.DivideToChunks(task.FilePath, chunkDuration);
+                    }).Start();
+                    break;
+
+                case "Chunk":
+                    IncrementChunksProcessing(w);
+                    new Thread(delegate ()
+                    {
+                        Utilities.ProcessChunk(task.FilePath);
+                    }).Start();
+                    break;
+
+                case "Join":
+                    new Thread(delegate ()
+                    {
+                        Utilities.RebuildFile(task.FilePath);
+                    }).Start();
+                    break;
+
+                default:
+                    break;
+            }
+
+            w.tasks.Remove(task);
+        }
+
+        private static List<Task> ComputeRankr(List<Task> readyTasks)
+        {
+            foreach (Task task in readyTasks)
+            {
+                Workflow w = workflows.Where(x => x.tasks.Contains(task)).ToList().First();
+                w.tasks.Remove(task);
+                int totalTasks = w.chunkTasks + 2;
+                if (w.isDivided)
+                {
+                    task.rankr = 1 / (((double)totalTasks - (1 + (double)w.chunkTasksDone)) / (double)totalTasks);
+                }
+                else
+                {
+                    task.rankr = 1;
+                }
+            }
+
+            return readyTasks;
+        }
+
+        private static List<Task> ComputeRankD(List<Task> readyTasks)
+        {
+            foreach (Task task in readyTasks)
+            {
+                Workflow w = GetWorkflowFromTask(task);
+                switch (task.Type)
+                {
+                    case "Join":
+                        task.rankd = 1 / w.fileDuration * (w.chunkTasks + 1);
+                        break;
+
+                    case "Divide":
+                        task.rankd = 0;
+                        break;
+
+                    case "Chunk":
+                        task.rankd = 1 / w.fileDuration * (w.chunkTasksDone + 1);
+                        break;
+
+                    default:
+                        break;
+                }
+            }
+
+            return readyTasks;
+        }
+
+        private static void CalculateRankus(List<Workflow> unrankedWorkflows)
+        {
+            foreach (Workflow workflow in unrankedWorkflows)
+            {
+                foreach (Task task in workflow.tasks)
+                {
+                    CalculateRanku(task);
+                }
+                workflow.rankusCalculated = true;
+            }
+        }
+
+        private static void CalculateRanku(Task task)
+        {
+            switch (task.Type)
+            {
+                case "Join":
+                    task.ranku = 0;
+                    break;
+
+                case "Divide":
+                    task.ranku = task.TimeToProcess + GetNextTaskRanku(task);
+                    break;
+
+                case "Chunk":
+                    task.ranku = task.TimeToProcess;
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
+        private static List<Task> GetHighestRankuTaskFromEachWorkflow()
+        {
+            List<Task> result = new List<Task>();
+            List<Workflow> undividedWorkflows = GetUndividedWorkflows();
+            List<Workflow> dividedWorkflows = GetDividedWorkflows();
+
+            foreach (Workflow workflow in undividedWorkflows)
+            {
+                result.Add(workflow.tasks.Where(x => x.Type == "Divide").ToList().First());
+            }
+
+            foreach (Workflow workflow in dividedWorkflows)
+            {
+                // If there are no more chunk tasks it should finally join
+                if (workflow.tasks.Count() > 1)
+                {
+                    result.Add(workflow.tasks.Where(x => x.Type == "Chunk").ToList().OrderByDescending(x => x.ranku).ToList().First());
+                }
+                else if (workflow.chunksProcessing == 0 && workflow.tasks.Count() == 1)
+                {
+                    result.Add(workflow.tasks.Where(x => x.Type == "Join").ToList().First());
+                }
+            }
+
+            return result;
+        }
+
+        private static List<Workflow> GetDividedWorkflows()
+        {
+            List<Workflow> dividedWorkflows = new List<Workflow>();
+            try
+            {
+                dividedWorkflows = workflows.Where(x => x.isDivided == true).ToList();
+            }
+            catch
+            {
+                Thread.Sleep(200);
+                dividedWorkflows = workflows.Where(x => x.isDivided == true).ToList();
+            }
+
+            return dividedWorkflows;
+        }
+
+        private static List<Workflow> GetUndividedWorkflows()
+        {
+            List<Workflow> undividedWorkflows = new List<Workflow>();
+            try
+            {
+                undividedWorkflows = workflows.Where(x => x.isDivided == false && x.isDividing == false).ToList();
+            }
+            catch
+            {
+                Thread.Sleep(200);
+                undividedWorkflows = workflows.Where(x => x.isDivided == false && x.isDividing == false).ToList();
+            }
+
+            return undividedWorkflows;
+        }
+
+        private static List<Task> GetAllReadyTasks()
+        {
+            List<Task> readyTasks = new List<Task>();
+
+            // TODO : Fix this
+
+            List<Workflow> undividedWorkflows = GetUndividedWorkflows();
+            List<Workflow> dividedWorkflows = GetDividedWorkflows();
+
+            // On divided workflows, Chunk and Join tasks can be added
+            foreach (Workflow workflow in dividedWorkflows)
+            {
+                List<Task> tasksToRemove = new List<Task>();
+                int tasksAdded = 0;
+                foreach (Task task in workflow.tasks.Where(x => x.Type == "Chunk"))
+                {
+                    readyTasks.Add(task);
+                    tasksToRemove.Add(task);
+                    tasksAdded++;
+                }
+
+                // If there are no more chunk tasks it should finally join
+                if (tasksAdded == 0 && workflow.chunkTasks == workflow.chunkTasksDone)
+                {
+                    foreach (Task task in workflow.tasks.Where(x => x.Type == "Join"))
+                    {
+                        readyTasks.Add(task);
+                        tasksToRemove.Add(task);
+                        break;
+                    }
+                }
+
+                foreach (Task t in tasksToRemove)
+                {
+                    workflow.tasks.Remove(t);
+                }
+            }
+
+            // If not only the Divide task can be added
+            foreach (Workflow workflow in undividedWorkflows)
+            {
+                List<Task> tasksToRemove = new List<Task>();
+                foreach (Task task in workflow.tasks.Where(x => x.Type == "Divide"))
+                {
+                    readyTasks.Add(task);
+                    tasksToRemove.Add(task);
+                    break;
+                }
+
+                foreach (Task t in tasksToRemove)
+                {
+                    workflow.tasks.Remove(t);
+                }
+            }
+
+            return readyTasks;
+        }
+
+        private static double GetNextTaskRanku(Task task)
+        {
+            Workflow w = GetWorkflowFromPath(task.FilePath);
+            Task t = w.tasks.Where(x => x.Type == "Chunk").ToList().First();
+            return t.TimeToProcess;
+        }
+
+        public static void IncrementChunksProcessing(Workflow workflow)
         {
             Interlocked.Increment(ref workflow.chunksProcessing);
             try
@@ -684,7 +690,7 @@ namespace Dissertacao
             }
         }
 
-        public static void decrementChunksProcessing(Workflow w)
+        public static void DecrementChunksProcessing(Workflow w)
         {
             Interlocked.Increment(ref w.chunksProcessing);
             try
@@ -697,7 +703,7 @@ namespace Dissertacao
             }
         }
 
-        public static void incrementAvailableCores()
+        public static void IncrementAvailableCores()
         {
             Interlocked.Increment(ref Program.availableCores);
             try
@@ -710,7 +716,7 @@ namespace Dissertacao
             }
         }
 
-        public static void decrementAvailableCores()
+        public static void DecrementAvailableCores()
         {
             Interlocked.Increment(ref Program.availableCores);
             try
@@ -723,7 +729,7 @@ namespace Dissertacao
             }
         }
 
-        public static void incrementChunkTasksDone(Workflow w)
+        public static void IncrementChunkTasksDone(Workflow w)
         {
             Interlocked.Increment(ref w.chunkTasksDone);
             try
