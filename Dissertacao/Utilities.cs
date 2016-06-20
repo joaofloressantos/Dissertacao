@@ -68,7 +68,12 @@ namespace Dissertacao
             //Console.WriteLine(startInfo.Arguments);
 
             process.StartInfo = startInfo;
+
             process.Start();
+
+            Workflow w = Program.GetWorkflowFromPath(filePath);
+            w.beginTime = DateTime.Now;
+
             process.WaitForExit();
 
             //string q = "";
@@ -80,8 +85,7 @@ namespace Dissertacao
             WriteListFile(destinationFolder);
 
             Program.IncrementAvailableCores();
-
-            Workflow w = Program.GetWorkflowFromPath(filePath);
+            
             w.isDivided = true;
             w.isDividing = false;
         }
@@ -204,6 +208,10 @@ namespace Dissertacao
             //Console.WriteLine(startInfo.Arguments);
 
             process.StartInfo = startInfo;
+
+            Workflow w = Program.GetWorkflowInProgressFromPath(filePath);
+            w.beginTime = DateTime.Now;
+
             process.Start();
             process.WaitForExit();
 
@@ -244,9 +252,13 @@ namespace Dissertacao
             //    q += process.StandardOutput.ReadToEnd();
             //}
 
+
+            w.endTime = DateTime.Now;
+
             File.Delete(source.FullName);
             File.Move(pass2FilePath, destinationFolder + source.Name);
 
+            Program.completedWorkflows.Add(Program.workflowsInProgress.Where(x => x.filePath == filePath).ToList().First());
             Program.workflowsInProgress.Remove(Program.workflowsInProgress.Where(x => x.filePath == filePath).ToList().First());
         }
 
@@ -284,8 +296,12 @@ namespace Dissertacao
             //    q += process.StandardOutput.ReadToEnd();
             //}
 
+            Workflow w = Program.GetWorkflowFromPath(filePath);
+            w.endTime = DateTime.Now;
+
             Program.IncrementAvailableCores();
 
+            Program.completedWorkflows.Add(Program.workflows.Find(x => x.filePath.Equals(filePath)));
             Program.workflows.Remove(Program.workflows.Find(x => x.filePath.Equals(filePath)));
         }
 

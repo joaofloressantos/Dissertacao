@@ -15,6 +15,7 @@ namespace Dissertacao
         public double processTimeSync;
         public double lastChunkDuration;
         public bool isDivided { get; set; }
+        public DateTime addedTime { get; set; }
         public DateTime beginTime { get; set; }
         public DateTime endTime { get; set; }
         public bool rankusCalculated { get; set; }
@@ -23,7 +24,7 @@ namespace Dissertacao
 
         public Workflow(string filePath, double chunkDuration)
         {
-            beginTime = DateTime.Now;
+            addedTime = DateTime.Now;
             this.filePath = filePath;
             isDivided = false;
             rankusCalculated = false;

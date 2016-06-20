@@ -53,8 +53,9 @@ namespace Dissertacao
         //private static string destination;
         private static string algorithm;
 
-        // Workflow List
+        // Workflow Lists
         public static List<Workflow> workflows = new List<Workflow>();
+        public static List<Workflow> completedWorkflows = new List<Workflow>();
 
         // For original algorithm
         public static double queueThreshold = 8;
@@ -115,7 +116,7 @@ namespace Dissertacao
                     OWM(source, chunkDuration);
                     break;
 
-                case "MW-DBS":
+                case "MWDBS":
                     MWDBS(source, chunkDuration);
                     break;
 
@@ -127,6 +128,42 @@ namespace Dissertacao
                     Console.WriteLine("Chosen algorithm not available. Exiting...");
                     return;
             }
+
+            CalculateMetrics();
+            Console.ReadKey();
+            Console.ReadKey();
+            Console.ReadKey();
+        }
+
+        private static void CalculateMetrics()
+        {
+            double addedMakespans = 0;
+            double addedTurnarounds = 0;
+            foreach(Workflow w in completedWorkflows)
+            {
+                Console.WriteLine("Workflow: " + w.filePath);
+                Console.WriteLine("Makespan: " + (w.endTime - w.beginTime).TotalSeconds);
+                Console.WriteLine("Turnaround Time: " + (w.endTime - w.addedTime).TotalSeconds);
+                addedMakespans += (w.endTime - w.beginTime).TotalSeconds;
+                addedTurnarounds += (w.endTime - w.addedTime).TotalSeconds;
+                Console.WriteLine();
+            }
+
+            Console.WriteLine("Average Makespan: " + addedMakespans / completedWorkflows.Count());
+            Console.WriteLine("Average Turnaround Time: " + addedTurnarounds / completedWorkflows.Count());
+            /*
+                Turnaround Time Ratio
+                The TTR metric measures the additional time each workflow spends in the system
+                to be executed in relation to the minimum Makespan obtained for that workflow.
+                The denominator in the TTR equation is the minimum computation cost of the
+                tasks that compose the critical path, which is a lower bound of execution time
+                for a workflow.
+
+                Normalized Turnaround Time
+                The NTT metric is obtained by the ratio of the minimum turnaround time and
+                the actual turnaround time for a given workflow G and an algorithm ai, as
+                defined by the following equation:
+            */
         }
 
         /// /////////////////////////////////////////
@@ -340,13 +377,18 @@ namespace Dissertacao
             catch
             {
                 Thread.Sleep(200);
-                return Program.workflows.Where(x => x.tasks.Contains(task)).ToList().First();
+                return GetWorkflowFromTask(task);
             }
         }
 
         public static Workflow GetWorkflowFromPath(string filePath)
         {
             return workflows.Where(x => x.filePath == filePath).ToList().First();
+        }
+
+        public static Workflow GetWorkflowInProgressFromPath(string filePath)
+        {
+            return workflowsInProgress.Where(x => x.filePath == filePath).ToList().First();
         }
 
         private static List<Task> GetReadyTasksRankHybd()
